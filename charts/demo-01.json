@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "id": "demo-01",
+  "title": "Demo 01",
+  "bpm": 92,
+  "lengthBeats": 8,
+  "loops": 2,
+  "leadInBeats": 4,
+  "ambient": [
+    { "b": 3.5, "i": "openhat" },
+    { "b": 7.5, "i": "openhat" }
+  ],
+  "rounds": [
+    { "play": [
+      { "b": 0, "i": "kick808" }, { "b": 2.5, "i": "kick808" },
+      { "b": 4, "i": "kick808" }, { "b": 6.5, "i": "kick808" }
+    ] },
+    { "play": [
+      { "b": 2, "i": "snare" }, { "b": 6, "i": "snare" }
+    ] },
+    { "play": [
+      { "b": 0.5, "i": "hat" }, { "b": 1.5, "i": "hat" }, { "b": 2.5, "i": "hat" }, { "b": 3.5, "i": "hat" },
+      { "b": 4.5, "i": "hat" }, { "b": 5.5, "i": "hat" }, { "b": 6.5, "i": "hat" }, { "b": 7.5, "i": "hat" }
+    ] },
+    { "play": [
+      { "b": 0, "i": "bass808", "p": 33 }, { "b": 2.5, "i": "bass808", "p": 33 },
+      { "b": 4, "i": "bass808", "p": 31 }, { "b": 6.5, "i": "bass808", "p": 36 }
+    ] },
+    { "play": [
+      { "b": 0, "i": "string", "p": 69 }, { "b": 3, "i": "string", "p": 67 },
+      { "b": 4, "i": "string", "p": 64 }, { "b": 7, "i": "string", "p": 62 }
+    ] }
+  ]
+}

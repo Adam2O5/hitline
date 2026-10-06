@@ -17,11 +17,11 @@ Wartości startowe, do strojenia na słuch. Zmiany zapisuj w historii repozytori
 | `clap` | 3-4 krótkie impulsy szumu przez filtr pasmowy, ostatni dłuższy | filtr ~1200 Hz; impulsy co ~12 ms |
 | `hat` | szum przez filtr górnoprzepustowy, bardzo krótka obwiednia | HP ~7000 Hz; zanik ~0,04 s |
 | `openhat` | jak `hat`, dłuższy zanik | zanik ~0,25 s |
-| `bass808` | oscylator sinusowy z lekkim nasyceniem | częstotliwość z nuty, zanik ~0,6 s |
-| `string` | kilka oscylatorów piłokształtnych z lekkim rozstrojeniem + filtr dolnoprzepustowy | 3 głosy, +/- 7 cent, atak ~0,05 s |
+| `bass808` | oscylator sinusowy z lekkim nasyceniem | wysokość z pola `p` (domyślnie MIDI 33 = 55 Hz), zanik ~0,6 s |
+| `string` | kilka oscylatorów piłokształtnych z lekkim rozstrojeniem + filtr dolnoprzepustowy | wysokość z pola `p` (domyślnie MIDI 57 = 220 Hz); 3 głosy, +/- 7 cent, atak ~0,05 s |
 | `perc` | krótki sinusoidalny ping z szybkim zanikiem | 800 Hz, zanik ~0,08 s |
 
-Szczegółowa implementacja znajduje się w `src/audio/synth.ts`. Każda funkcja ma sygnaturę `(when: number) => void` i tworzy węzły jednorazowe, zatrzymywane po zaniku.
+Szczegółowa implementacja znajduje się w `src/audio/synth.ts`. Publiczne API to `play(instrument, when, pitch?)`; częstotliwość liczona jest jako `440 * 2^((pitch - 69) / 12)`, a instrumenty bez wysokości ignorują `pitch`. Każdy instrument i tworzy węzły jednorazowe, zatrzymywane po zaniku.
 
 ### Zasady implementacyjne
 

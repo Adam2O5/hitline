@@ -4,7 +4,7 @@ import type { Grade, InstrumentId, PlayableNote } from './types.ts';
 
 export type TapResult =
   | { kind: 'hit'; note: PlayableNote; deltaMs: number; grade: Grade }
-  | { kind: 'empty'; instrument: InstrumentId };
+  | { kind: 'empty'; instrument: InstrumentId; pitch?: number };
 
 export function judgeTap(
   tapTime: number,          // czas kliknięcia, skala audio, po korekcie kalibracji
@@ -24,7 +24,10 @@ export function judgeTap(
       return { kind: 'hit', note: n, deltaMs, grade };
     }
   }
-  return { kind: 'empty', instrument: nearestNote(tapTime - songStart, notes).instrument };
+  const near = nearestNote(tapTime - songStart, notes);
+  return near.pitch === undefined
+    ? { kind: 'empty', instrument: near.instrument }
+    : { kind: 'empty', instrument: near.instrument, pitch: near.pitch };
 }
 
 function nearestNote(t: number, notes: PlayableNote[]): PlayableNote {

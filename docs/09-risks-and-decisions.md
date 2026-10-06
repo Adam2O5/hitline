@@ -134,6 +134,22 @@ Plan wyjścia dla R-03 i R-07: logika danych jest ukryta za cienkim interfejsem 
 - **Decyzja:** (A). `CONFIG.windowsMs`, `gradeFor` w `engine/scoring` współdzielonym z Workerem; `deltaMs` zapisywane w nucie i wysyłane bez zmian.
 - **Konsekwencje:** identyczna ocena po obu stronach; rozdzielczość oceny 1 ms, pomijalna wobec opóźnień wejścia i wyjścia.
 
+### ADR-015: Wysokość dźwięku w nucie
+
+- **Status:** przyjęta.
+- **Kontekst:** `bass808` i `string` grały stałą częstotliwość, więc mapa nie mogła zapisać linii basu ani akordów.
+- **Opcje:** (A) opcjonalne pole `p` z numerem nuty MIDI; (B) osobne instrumenty dla każdej wysokości; (C) brak wysokości w wersji 1.
+- **Decyzja:** (A). `p` przechodzi do `BackingNote.pitch` i `synth.play(instrument, when, pitch?)`; puste kliknięcie gra wysokość najbliższej nuty.
+- **Konsekwencje:** format pozostaje w wersji 1 (pole opcjonalne); walidator odrzuca `p` dla instrumentów bez wysokości; ocena trafień nie zależy od `p`.
+
+### ADR-016: Walidacja map poza klientem
+
+- **Status:** przyjęta.
+- **Kontekst:** walidacja Zod w kliencie zwiększała paczkę JS z ok. 6 KB do ok. 32 KB (gzip), choć mapy są statyczne i sprawdzane w CI.
+- **Opcje:** (A) walidacja w kliencie, CI i Workerze; (B) walidacja tylko w CI i Workerze.
+- **Decyzja:** (B). Walidator w osobnym module `engine/validate.ts`, importowanym przez `scripts/validate-charts.ts`, testy i Worker; `charts/index.ts` rzutuje JSON na `Chart`.
+- **Konsekwencje:** mała paczka klienta; błędna mapa może trafić do klienta tylko z pominięciem CI. Mapy ładowane dynamicznie (spoza buildu) wymagałyby powrotu do walidacji w kliencie.
+
 ## 3. Procedura przeglądu limitów
 
 Co kwartał oraz przed każdym wdrożeniem publicznym:

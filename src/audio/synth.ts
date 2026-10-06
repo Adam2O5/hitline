@@ -35,10 +35,12 @@ export function initSynth(c: AudioContext): void {
   }
 }
 
-export function play(inst: InstrumentId, when: number): void {
+export function play(inst: InstrumentId, when: number, pitch?: number): void {
   if (!ctx) return;
-  INSTRUMENTS[inst](ctx, when);
+  INSTRUMENTS[inst](ctx, when, pitch);
 }
+
+const midiToHz = (n: number) => 440 * 2 ** ((n - 69) / 12);
 
 export function stopAll(): void {
   if (!ctx) return;
@@ -118,7 +120,7 @@ function hat(c: AudioContext, when: number, decay: number): void {
   add(v, n, when, decay + 0.02);
 }
 
-const INSTRUMENTS: Record<InstrumentId, (c: AudioContext, when: number) => void> = {
+const INSTRUMENTS: Record<InstrumentId, (c: AudioContext, when: number, pitch?: number) => void> = {
   kick808(c, when) {
     const v = voice(c);
     const o = osc(c, 'sine', 150);
@@ -163,21 +165,21 @@ const INSTRUMENTS: Record<InstrumentId, (c: AudioContext, when: number) => void>
     hat(c, when, 0.25);
   },
 
-  bass808(c, when) {
+  bass808(c, when, pitch = 33) {
     const v = voice(c);
-    const o = osc(c, 'sine', 55);
+    const o = osc(c, 'sine', midiToHz(pitch));
     const ws = c.createWaveShaper();
     ws.curve = saturation;
     o.connect(ws).connect(env(c, when, 0.7, 0.6)).connect(v.out);
     add(v, o, when, 0.65);
   },
 
-  string(c, when) {
+  string(c, when, pitch = 57) {
     const v = voice(c);
     const lp = filter(c, 'lowpass', 1200);
     lp.connect(env(c, when, 0.25, 0.6, 0.05)).connect(v.out);
     for (const detune of [-7, 0, 7]) {
-      const o = osc(c, 'sawtooth', 220);
+      const o = osc(c, 'sawtooth', midiToHz(pitch));
       o.detune.value = detune;
       o.connect(lp);
       add(v, o, when, 0.7);

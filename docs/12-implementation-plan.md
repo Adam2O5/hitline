@@ -63,7 +63,7 @@ Kryteria ukończenia: jak w `10-roadmap.md`, etap 1; pierwszy pomiar opóźnieni
 3. `charts/index.ts` (eksport map jako `Record<string, Chart>`) i pierwsza pełna mapa: 5 rund, własna kompozycja, `ambient`.
 4. `audio/scheduler.ts` według `03`, pkt 6, z parametrem `startIndex`.
 5. `engine/session.ts`, wersja pełna: automat stanów `playing | paused | countdown | round-results`, zamknięcie rundy w chwili `max(koniec_ostatniej_pętli, ostatnia_nuta + windowsMs.ok)`, zapis nut rundy do `results`, `perRound`, przejście do kolejnej rundy.
-6. Pauza i wznowienie w `game/controller.ts`: `visibilitychange`, przycisk, Esc; `resumeFromPause` z `03`, pkt 7.
+6. Pauza i wznowienie w `game/controller.ts`: `visibilitychange`, przycisk, Esc; `resume()` według `resumeFromPause` z `03`, pkt 7 (plan wznowienia w czystej funkcji `game/pause.ts: planResume`); odliczanie rysuje `Renderer`.
 7. UI: menu, karta mapy, wyniki rundy, wyniki mapy, pauza, odliczanie (`11-ux.md`). Do DOM wystarczy czysty TypeScript lub Preact; nie wprowadzaj frameworka do ścieżki gry (ADR-002).
 8. ADR-006: wariant A (tło kompletne). Wariant B to przekazanie `missed` zbudowanego z `results`; decyzja po testach z graczami w etapie 5.
 

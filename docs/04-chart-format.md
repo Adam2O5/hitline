@@ -20,6 +20,7 @@ export type InstrumentId =
 export interface Note {
   b: number;                 // pozycja w beatach od początku pętli (>= 0, < lengthBeats)
   i: InstrumentId;           // instrument
+  p?: number;                // wysokość jako numer nuty MIDI 0..127, tylko bass808 i string (ADR-015)
 }
 
 export interface Round {
@@ -85,10 +86,12 @@ Decyzja o wariancie jest zapisana w `09-risks-and-decisions.md` (ADR-006, do pod
 - `loops` jest liczbą całkowitą, `1 <= loops <= 16`
 - `rounds.length === 5`, każda runda ma co najmniej jedną nutę `play`
 - każda nuta (w `play` i `ambient`): `0 <= b < lengthBeats`, `i` należy do `InstrumentId`
+- `p`, jeśli podane: liczba całkowita `0..127`, dozwolona tylko dla `bass808` i `string`; brak `p` oznacza wysokość domyślną instrumentu (`05-audio-assets.md`)
+- brak nieznanych pól (schematy ścisłe)
 - nuty w każdej tablicy posortowane rosnąco po `b`
 - minimalny odstęp między kolejnymi nutami `play` jednej rundy, **w sekundach**, nie mniejszy niż `CONFIG.windowsMs.ok / 1000`. Sprawdzany także na granicy pętli (ostatnia nuta pętli i pierwsza nuta następnej), jeśli `loops > 1`. Uzasadnienie: ADR-009.
 
-Zalecana implementacja: biblioteka walidacji schematu (np. Zod) lub JSON Schema z walidatorem. Reguła minimalnego odstępu wymaga osobnej funkcji, bo zależy od `bpm` i `CONFIG`. Walidacja uruchamiana jest w trzech miejscach: przy ładowaniu w kliencie, w skrypcie `npm run validate:charts` (CI) i w Workerze przy wyliczaniu maksymalnego wyniku.
+Implementacja: `engine/validate.ts` (Zod, schematy ścisłe) z `validateChart(json)` i `validateSpacing(chart)`. Reguła minimalnego odstępu jest osobną funkcją, bo zależy od `bpm` i `CONFIG`. Walidacja uruchamiana jest w dwóch miejscach: w skrypcie `npm run validate:charts` (CI, blokuje build) i w Workerze przy wyliczaniu maksymalnego wyniku. Klient nie importuje `engine/validate.ts` i traktuje mapy z `charts/index.ts` jako poprawne, żeby Zod nie trafiał do paczki przeglądarki (ADR-016).
 
 ## 6. Konwersja na nuty grywalne
 
@@ -96,7 +99,7 @@ Typy `PlayableNote` i `BackingNote` leżą w `engine/types.ts`, żeby `chart.ts`
 
 ```ts
 // engine/types.ts
-export interface BackingNote { time: number; instrument: InstrumentId }
+export interface BackingNote { time: number; instrument: InstrumentId; pitch?: number }
 export interface PlayableNote extends BackingNote { hit: boolean; grade?: Grade; deltaMs?: number }
 ```
 

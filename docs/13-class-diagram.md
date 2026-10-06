@@ -40,6 +40,7 @@ classDiagram
     <<interface>>
     +number b
     +InstrumentId i
+    +number p
   }
 
   class Round {
@@ -64,6 +65,7 @@ classDiagram
     <<interface>>
     +number time
     +InstrumentId instrument
+    +number pitch
   }
 
   class PlayableNote {
@@ -76,7 +78,7 @@ classDiagram
   class TapResult {
     <<union>>
     hit: note, deltaMs, grade
-    empty: instrument
+    empty: instrument, pitch
   }
 
   class SessionState {
@@ -128,6 +130,7 @@ classDiagram
 
 Uwagi:
 
+- `Note.p` i `BackingNote.pitch` są opcjonalne (numer nuty MIDI, ADR-015).
 - `SessionState.frozenAt` jest `number | null`; `PlayableNote.grade` i `PlayableNote.deltaMs` są opcjonalne; `Chart.ambient`, `ScorePayload.hits` i `ScorePayload.emptyTaps` są opcjonalne. Mermaid nie obsługuje tu typów unijnych w składni pól.
 - `ScorePayload.hits` ma typ `[index: number, deltaMs: number][]`, z indeksem globalnym nuty (`04`, pkt 6).
 - `SessionState.phase` przyjmuje wartości `playing`, `paused`, `countdown`, `round-results`.
@@ -153,14 +156,18 @@ classDiagram
 
   class ChartModule {
     <<module>>
-    +validate(json) Chart
-    +validateSpacing(chart) string[]
     +sec(chart, b) number
     +toPlayable(chart, roundIndex) PlayableNote[]
     +roundOffset(chart, roundIndex) number
     +roundDuration(chart) number
     +toBacking(chart, roundIndex, missed) BackingNote[]
     +maxScore(chart) number
+  }
+
+  class ChartValidation {
+    <<module>>
+    +validateChart(json) ValidationResult
+    +validateSpacing(chart) string[]
   }
 
   class Judge {
@@ -199,7 +206,7 @@ classDiagram
     +update(now) void
     +pause(pausePos) void
     +beginCountdown(songStart) void
-    +endCountdown() void
+    +isLastRound() boolean
     -closeRound() void
     +getState() SessionState
   }
@@ -213,7 +220,7 @@ classDiagram
   class Synth {
     <<module>>
     +initSynth(ctx) void
-    +play(instrument, when) void
+    +play(instrument, when, pitch) void
     +stopAll() void
   }
 
@@ -233,7 +240,7 @@ classDiagram
   class GameController {
     -Session session
     -Scheduler scheduler
-    +GameController(ctx, chart, method, offset, area, renderer, onRoundEnd)
+    +GameController(ctx, chart, method, offset, area, renderer, events)
     +attach() void
     +detach() void
     +startRound(roundIndex) void
@@ -242,14 +249,15 @@ classDiagram
     -tap(e) void
     -onVisibilityChange() void
     +pause() void
-    +resumeFromPause() Promise
+    +resume() Promise
+    +exit() Promise
     -frame() void
   }
 
   class Renderer {
     -CanvasRenderingContext2D g
     +Renderer(canvas)
-    +draw(state, now) void
+    +draw(state, songTime) void
     +feedback(tapResult, at) void
     +dispose() void
     -resize() void
@@ -263,7 +271,6 @@ classDiagram
     +showMapCard(chartId) void
     +showRound() void
     +showPause() void
-    +showCountdown() void
     +showRoundResults() void
     +showMapResults() void
     +showRanking() void
@@ -302,6 +309,8 @@ classDiagram
   Judge ..> Scoring : gradeFor
   Scoring ..> Config
   ChartModule ..> Config
+  ChartValidation ..> ChartModule
+  ChartValidation ..> Config
   CalibrationModule ..> Clock : ClockMethod
   Clock ..> AudioContextProvider
   Synth ..> AudioContextProvider

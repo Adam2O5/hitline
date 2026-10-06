@@ -54,8 +54,9 @@ export class Renderer {
     this.feedbackAt = at;
   }
 
-  draw(s: Readonly<SessionState>, now: number): void {
+  draw(s: Readonly<SessionState>, songTime: number): void {
     const { g, w, h } = this;
+    const now = s.frozenAt !== null ? Math.max(songTime, s.frozenAt) : songTime;
     const hitY = h * 0.8;
     const x = w / 2;
     const radius = Math.max(14, Math.min(w, h) * 0.045);
@@ -96,6 +97,15 @@ export class Renderer {
       g.textAlign = 'center';
       g.fillText(this.feedbackText, x, hitY + radius * 3);
       g.globalAlpha = 1;
+    }
+
+    if (s.phase === 'countdown' && s.frozenAt !== null) {
+      g.fillStyle = '#fff';
+      g.font = `bold ${Math.round(Math.min(w, h) * 0.2)}px system-ui, sans-serif`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(String(Math.max(1, Math.ceil(s.frozenAt - songTime))), w / 2, h / 2);
+      g.textBaseline = 'alphabetic';
     }
 
     g.fillStyle = '#ccc';

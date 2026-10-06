@@ -15,6 +15,14 @@ export function button(text: string, onClick: () => void, secondary = false): HT
   return b;
 }
 
+export function overlay(parent: HTMLElement, ...children: HTMLElement[]): HTMLDivElement {
+  const o = el('div', 'overlay');
+  o.append(...children);
+  o.addEventListener('pointerdown', e => e.stopPropagation());
+  parent.append(o);
+  return o;
+}
+
 export function screen(root: HTMLElement, ...children: HTMLElement[]): HTMLDivElement {
   const s = el('div', 'screen');
   s.append(...children);

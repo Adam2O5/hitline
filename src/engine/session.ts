@@ -62,6 +62,24 @@ export class Session {
     this.state.emptyTaps[roundIndex] = 0;
   }
 
+  pause(pausePos: number): void {
+    const s = this.state;
+    if (s.phase === 'playing') s.frozenAt = pausePos;
+    else if (s.phase !== 'countdown') return;
+    s.phase = 'paused';
+  }
+
+  beginCountdown(songStart: number): void {
+    const s = this.state;
+    if (s.phase !== 'paused') return;
+    s.songStart = songStart;
+    s.phase = 'countdown';
+  }
+
+  isLastRound(): boolean {
+    return this.state.roundIndex === this.chart.rounds.length - 1;
+  }
+
   onTap(tapTime: number): TapResult | null {
     const s = this.state;
     if (s.phase !== 'playing') return null;
@@ -72,8 +90,12 @@ export class Session {
 
   update(now: number): void {
     const s = this.state;
-    if (s.phase !== 'playing') return;
     const t = now - s.songStart;
+    if (s.phase === 'countdown' && s.frozenAt !== null && t >= s.frozenAt) {
+      s.phase = 'playing';
+      s.frozenAt = null;
+    }
+    if (s.phase !== 'playing') return;
     const w = CONFIG.windowsMs.ok / 1000;
     while (this.missCursor < s.notes.length && t > s.notes[this.missCursor].time + w) {
       const n = s.notes[this.missCursor];

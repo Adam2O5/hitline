@@ -2,8 +2,9 @@ import { CONFIG } from './config.ts';
 import type { BackingNote, InstrumentId, PlayableNote } from './types.ts';
 
 export interface Note {
-  b: number;                 // pozycja w beatach od początku pętli (>= 0, < lengthBeats)
+  b: number;
   i: InstrumentId;
+  p?: number;
 }
 
 export interface Round {
@@ -29,7 +30,9 @@ function expand(chart: Chart, notes: Note[]): BackingNote[] {
   const out: BackingNote[] = [];
   for (let loop = 0; loop < chart.loops; loop++) {
     for (const n of notes) {
-      out.push({ time: lead + sec(chart, loop * chart.lengthBeats + n.b), instrument: n.i });
+      const note: BackingNote = { time: lead + sec(chart, loop * chart.lengthBeats + n.b), instrument: n.i };
+      if (n.p !== undefined) note.pitch = n.p;
+      out.push(note);
     }
   }
   return out;
@@ -41,6 +44,18 @@ export function toPlayable(chart: Chart, roundIndex: number): PlayableNote[] {
 
 export function roundOffset(chart: Chart, roundIndex: number): number {
   return chart.rounds.slice(0, roundIndex).reduce((s, r) => s + r.play.length * chart.loops, 0);
+}
+
+export function toBacking(chart: Chart, roundIndex: number, missed?: Set<number>): BackingNote[] {
+  const out: BackingNote[] = [];
+  for (let r = 0; r < roundIndex; r++) {
+    const base = roundOffset(chart, r);
+    expand(chart, chart.rounds[r].play).forEach((n, j) => {
+      if (!missed?.has(base + j)) out.push(n);
+    });
+  }
+  if (chart.ambient) out.push(...expand(chart, chart.ambient));
+  return out.sort((a, b) => a.time - b.time);
 }
 
 export function roundDuration(chart: Chart): number {

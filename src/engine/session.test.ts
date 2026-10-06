@@ -86,4 +86,37 @@ describe('Session', () => {
     expect(st.results[1].map(n => n.grade)).toEqual(['miss', 'perfect']);
     expect(st.score).toBe(200);
   });
+
+  it('zamraża pozycję na pauzie i wznawia grę po odliczaniu', () => {
+    const s = new Session(chart, 'current-time', 0);
+    s.start(0, START);
+    s.pause(1.5);
+    expect(s.getState()).toMatchObject({ phase: 'paused', frozenAt: 1.5 });
+    expect(s.onTap(START + 1.5)).toBeNull();
+
+    const songStart = 100 + 3 - 1.5;
+    s.beginCountdown(songStart);
+    s.update(100 + 1);
+    expect(s.getState().phase).toBe('countdown');
+    expect(s.onTap(100 + 1)).toBeNull();
+
+    s.update(100 + 3);
+    expect(s.getState()).toMatchObject({ phase: 'playing', frozenAt: null });
+    expect(s.onTap(songStart + 2)).toMatchObject({ kind: 'hit', grade: 'perfect' });
+  });
+
+  it('pauza w trakcie odliczania zachowuje pierwotną pozycję', () => {
+    const s = new Session(chart, 'current-time', 0);
+    s.start(0, START);
+    s.pause(1.5);
+    s.beginCountdown(101.5);
+    s.pause(-1);
+    expect(s.getState()).toMatchObject({ phase: 'paused', frozenAt: 1.5 });
+  });
+
+  it('ignoruje pauzę poza grą', () => {
+    const s = new Session(chart, 'current-time', 0);
+    s.pause(1);
+    expect(s.getState().phase).toBe('round-results');
+  });
 });
