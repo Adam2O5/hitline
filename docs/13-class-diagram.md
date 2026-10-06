@@ -158,6 +158,7 @@ classDiagram
     +sec(chart, b) number
     +toPlayable(chart, roundIndex) PlayableNote[]
     +roundOffset(chart, roundIndex) number
+    +roundDuration(chart) number
     +toBacking(chart, roundIndex, missed) BackingNote[]
     +maxScore(chart) number
   }
@@ -183,15 +184,17 @@ classDiagram
   class CalibrationModule {
     <<module>>
     +median(xs) number
+    +measure(taps, beats, skipBeats) Measurement
     +computeOffset(taps, beats, skipBeats) number
-    +load(method) number
-    +save(offset, method) void
+    +loadCalibration(method, storage) LoadResult
+    +saveCalibration(offset, method, storage) boolean
   }
 
   class Session {
     -SessionState state
     -Chart chart
-    +start(chart, roundIndex, songStart) void
+    +Session(chart, clockMethod, calibrationOffset)
+    +start(roundIndex, songStart) void
     +onTap(tapTime) TapResult
     +update(now) void
     +pause(pausePos) void
@@ -209,6 +212,7 @@ classDiagram
 
   class Synth {
     <<module>>
+    +initSynth(ctx) void
     +play(instrument, when) void
     +stopAll() void
   }
@@ -229,11 +233,13 @@ classDiagram
   class GameController {
     -Session session
     -Scheduler scheduler
-    -ClockMethod method
-    -number calibrationOffset
-    +startRound(chart, roundIndex) void
+    +GameController(ctx, chart, method, offset, area, renderer, onRoundEnd)
+    +attach() void
+    +detach() void
+    +startRound(roundIndex) void
     -onPointerDown(e) void
     -onKeyDown(e) void
+    -tap(e) void
     -onVisibilityChange() void
     +pause() void
     +resumeFromPause() Promise
@@ -242,9 +248,11 @@ classDiagram
 
   class Renderer {
     -CanvasRenderingContext2D g
+    +Renderer(canvas)
     +draw(state, now) void
-    -drawCircle(x, y, note) void
-    -drawFeedback(grade) void
+    +feedback(tapResult, at) void
+    +dispose() void
+    -resize() void
   }
 
   class Screens {
@@ -347,9 +355,10 @@ classDiagram
 
 ## 4. Założenia projektowe widoczne na diagramie
 
-1. `Session` jest czystą logiką: czas dostaje jako liczbę (`onTap(tapTime)`, `update(now)`), nie zna DOM ani audio, więc testuje się w Node bez atrap Web Audio.
-2. `GameController` łączy zdarzenia wejścia, zegar, kalibrację, `Session`, `Synth` i `Scheduler`. W nim jest procedura pauzy i wznowienia (`03`, pkt 7) oraz pętla rAF.
-3. `Scheduler` nie zna `Synth` bezpośrednio. Dostaje `AudioContext` i funkcję `play` w konstruktorze, więc można go testować z atrapami.
-4. `Judge` mutuje przekazane `PlayableNote` (`hit`, `grade`, `deltaMs`). Stan nut należy do `SessionState`, a `Judge` jest bezstanowy poza tą mutacją.
-5. `SessionState.results` przechowuje nuty zakończonych rund; z niego powstają `ScorePayload.hits` i zbiór `missed` dla wariantu B z ADR-006.
-6. `Worker` importuje tylko moduły niezależne od przeglądarki (`ChartModule`, `Scoring`, `Config`, `types`).
+1. `Session` jest czystą logiką: czas dostaje jako liczbę (`onTap(tapTime)`, `update(now)`), nie zna DOM ani audio, więc testuje się w Node bez atrap Web Audio. `onTap` zwraca `null` poza fazą `playing`, więc sesja sama pilnuje ignorowania kliknięć niezależnie od kontrolera.
+2. `CalibrationModule` dostaje `Storage` jako argument (domyślnie `localStorage`); `loadCalibration` rozróżnia brak kalibracji (`missing`) i zmianę metody zegara (`method-changed`), bo `11-ux.md` ma dla nich różne komunikaty.
+3. `GameController` łączy zdarzenia wejścia, zegar, kalibrację, `Session`, `Synth` i `Scheduler`. W nim jest procedura pauzy i wznowienia (`03`, pkt 7) oraz pętla rAF.
+4. `Scheduler` nie zna `Synth` bezpośrednio. Dostaje `AudioContext` i funkcję `play` w konstruktorze, więc można go testować z atrapami.
+5. `Judge` mutuje przekazane `PlayableNote` (`hit`, `grade`, `deltaMs`). Stan nut należy do `SessionState`, a `Judge` jest bezstanowy poza tą mutacją.
+6. `SessionState.results` przechowuje nuty zakończonych rund; z niego powstają `ScorePayload.hits` i zbiór `missed` dla wariantu B z ADR-006.
+7. `Worker` importuje tylko moduły niezależne od przeglądarki (`ChartModule`, `Scoring`, `Config`, `types`).
