@@ -23,8 +23,10 @@ Dokumentacja opisuje stan zaplanowany. Limity darmowych planów Cloudflare zosta
 | `docs/09-risks-and-decisions.md` | rejestr ryzyk i zapisy decyzji architektonicznych (ADR) |
 | `docs/10-roadmap.md` | etapy i kryteria ukończenia |
 | `docs/11-ux.md` | ekrany, przejścia między nimi, komunikaty |
+| `docs/12-implementation-plan.md` | plan implementacji etapami, kolejność modułów i ryzyk |
+| `docs/13-class-diagram.md` | model danych, moduły i klasy, mapowanie na pliki |
 
-Zalecana kolejność czytania: 02, 03, 04, 11, potem reszta.
+Zalecana kolejność czytania: 02, 03, 04, 11, potem reszta. Przed kodowaniem: 12 i 13.
 
 ## Szybki start (lokalnie)
 
@@ -50,7 +52,8 @@ Skrypty są zdefiniowane w `package.json` (patrz `docs/07-deployment.md`).
 ├── docs/
 │   └── assets-register.csv
 ├── src/
-│   ├── engine/        # config, clock, judge, scoring, session, chart
+│   ├── engine/        # types, config, clock, calibration, judge, scoring, session, chart
+│   ├── game/          # controller: wejście, audio, pauza
 │   ├── audio/         # AudioContext, synteza, scheduler
 │   ├── render/        # Canvas, animacja kółek
 │   ├── net/           # klient API

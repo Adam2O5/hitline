@@ -19,8 +19,7 @@ compatibility_date = "2026-10-01"
 [assets]
 directory = "./dist"
 binding = "ASSETS"
-# Aby Worker obsługiwał /api/* przed statykami, sprawdź w dokumentacji opcję
-# kolejności (np. run_worker_first) odpowiednią dla Twojej wersji Wranglera.
+run_worker_first = ["/api/*"]
 
 [[d1_databases]]
 binding = "DB"
@@ -37,7 +36,9 @@ simple = { limit = 10, period = 60 }
 crons = ["0 3 * * *"]
 ```
 
-Szczegóły składni `[assets]`, `[[ratelimits]]` i kolejności obsługi żądań zmieniają się między wersjami Wranglera. Traktuj powyższy plik jako punkt wyjścia i zweryfikuj z bieżącą dokumentacją. Nazwy Workera i bazy D1 zapisuj małymi literami. `namespace_id` limitera to dowolny identyfikator liczbowy unikalny w obrębie konta. Cron uruchamia codzienną retencję wyników (`06-backend-and-data.md`, pkt 7) o 03:00 UTC.
+Szczegóły składni `[assets]`, `[[ratelimits]]` i kolejności obsługi żądań zmieniają się między wersjami Wranglera. Traktuj powyższy plik jako punkt wyjścia i zweryfikuj z bieżącą dokumentacją. Nazwy Workera i bazy D1 zapisuj małymi literami.
+
+`run_worker_first = ["/api/*"]` kieruje żądania API zawsze do Workera, a pozostałe ścieżki najpierw do statyków. Format tablicy wzorców sprawdź w dokumentacji swojej wersji Wranglera; starsze wersje przyjmują tylko wartość logiczną. Nie włączaj `not_found_handling = "single-page-application"` bez sprawdzenia w `wrangler dev`, że żądania `/api/*` nadal trafiają do Workera. `namespace_id` limitera to dowolny identyfikator liczbowy unikalny w obrębie konta. Cron uruchamia codzienną retencję wyników (`06-backend-and-data.md`, pkt 7) o 03:00 UTC.
 
 ## 3. Skrypty `package.json`
 

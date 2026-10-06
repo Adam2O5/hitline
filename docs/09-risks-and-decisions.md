@@ -67,7 +67,7 @@ Plan wyjścia dla R-03 i R-07: logika danych jest ukryta za cienkim interfejsem 
 
 ### ADR-006: Zachowanie warstwy tła po chybieniu nuty
 
-- **Status:** do podjęcia po testach z graczami.
+- **Status:** do podjęcia po testach z graczami w etapie 5; do tego czasu obowiązuje wariant A.
 - **Opcje:** (A) tło zawsze kompletne; (B) chybiona nuta pozostaje cicha w kolejnych rundach (ta sama pozycja w tej samej pętli, patrz `04-chart-format.md`, pkt 4).
 - **Kryterium wyboru:** odczucie postępu w budowaniu beatu vs. czytelność konsekwencji błędów.
 

@@ -14,7 +14,7 @@ Każdy etap kończy się spełnieniem kryteriów ukończenia. Nie przechodź do 
 
 ## Etap 2: Rundy kumulatywne i punktacja
 
-**Zakres:** format mapy (JSON) i walidacja, 5 rund z pętlami i kumulacją warstw (także `ambient`), scheduler warstw tła, punktacja z karą za puste kliknięcia, pauza z odliczaniem, ekrany wyników rundy i mapy (`11-ux.md`), decyzja w ADR-006.
+**Zakres:** format mapy (JSON) i walidacja, 5 rund z pętlami i kumulacją warstw (także `ambient`), scheduler warstw tła, punktacja z karą za puste kliknięcia, pauza z odliczaniem, ekrany wyników rundy i mapy (`11-ux.md`). ADR-006: wariant A jako domyślny, `toBacking` gotowe na wariant B.
 
 **Kryteria ukończenia:**
 - co najmniej jedna kompletna mapa (własna kompozycja) z 5 rundami;
@@ -43,7 +43,7 @@ Każdy etap kończy się spełnieniem kryteriów ukończenia. Nie przechodź do 
 
 ## Etap 5: Dopracowanie
 
-**Zakres:** strojenie dźwięków, kolejne mapy, UX mobilny, dostępność (kontrast, alternatywa dla dźwięku/wizualizacji), ekran "O grze" z licencjami, przegląd limitów (pkt 3 w `09-risks-and-decisions.md`).
+**Zakres:** strojenie dźwięków, kolejne mapy, UX mobilny, dostępność (kontrast, alternatywa dla dźwięku/wizualizacji), ekran "O grze" z licencjami, przegląd limitów (pkt 3 w `09-risks-and-decisions.md`), testy z graczami i decyzja w ADR-006 oraz w sprawie wysokości kary za puste kliknięcie (ADR-011).
 
 **Kryteria ukończenia:**
 - macierz kompatybilności wypełniona;

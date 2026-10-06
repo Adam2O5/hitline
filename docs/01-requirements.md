@@ -42,7 +42,7 @@ Wartości docelowe są założeniami projektowymi do zweryfikowania pomiarem, a 
 
 ## 4. Punktacja (wartości domyślne)
 
-Błąd czasu `delta = czas_kliknięcia - czas_nuty`, po uwzględnieniu kalibracji.
+Błąd czasu `delta = czas_kliknięcia - czas_nuty`, po uwzględnieniu kalibracji, zaokrąglony do całych milisekund przed porównaniem z progami (ta sama wartość jest wysyłana do serwera).
 
 | Ocena | Warunek | Punkty |
 |---|---|---|

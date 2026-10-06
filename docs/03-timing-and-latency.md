@@ -34,14 +34,16 @@ Dostępne są dwie metody. Dają wyniki przesunięte względem siebie mniej wię
 // engine/clock.ts
 export type ClockMethod = 'output-timestamp' | 'current-time';
 
-export function detectClockMethod(ctx: AudioContext): ClockMethod {
-  if (typeof ctx.getOutputTimestamp === 'function') {
-    const { contextTime, performanceTime } = ctx.getOutputTimestamp();
-    if (contextTime !== undefined && performanceTime !== undefined && performanceTime > 0) {
-      return 'output-timestamp';
-    }
-  }
-  return 'current-time';
+function outputTimestampWorks(ctx: AudioContext): boolean {
+  if (typeof ctx.getOutputTimestamp !== 'function') return false;
+  const { contextTime, performanceTime } = ctx.getOutputTimestamp();
+  return contextTime !== undefined && performanceTime !== undefined && performanceTime > 0;
+}
+
+export async function detectClockMethod(ctx: AudioContext): Promise<ClockMethod> {
+  if (outputTimestampWorks(ctx)) return 'output-timestamp';
+  await new Promise(r => setTimeout(r, 100));
+  return outputTimestampWorks(ctx) ? 'output-timestamp' : 'current-time';
 }
 
 export function eventToAudioTime(
@@ -58,27 +60,29 @@ export function eventToAudioTime(
 }
 ```
 
-`detectClockMethod` wywołuj dopiero, gdy kontekst jest w stanie `running`; wcześniej `performanceTime` bywa równe 0. Uzasadnienie wyboru: ADR-010.
+`detectClockMethod` wywołuj dopiero, gdy kontekst jest w stanie `running`. Tuż po `resume()` `performanceTime` bywa równe 0, dlatego przed wyborem metody zapasowej jest jedno ponowienie po 100 ms. Uzasadnienie wyboru: ADR-010.
 
 Uwaga: wsparcie i dokładność `getOutputTimestamp` różnią się między przeglądarkami. Przed wdrożeniem sprawdź wsparcie w macierzy przeglądarek (`08-testing.md`) i porównaj wyniki z metodą zapasową.
 
 ## 4. Ocena trafienia
 
 ```ts
-// engine/judge.ts
-import { CONFIG } from './config';
-
-export type Grade = 'perfect' | 'good' | 'ok' | 'miss';
-
-export function gradeFor(absDeltaSec: number): Grade {
-  if (absDeltaSec <= CONFIG.windows.perfect) return 'perfect';
-  if (absDeltaSec <= CONFIG.windows.good) return 'good';
-  if (absDeltaSec <= CONFIG.windows.ok) return 'ok';
+// engine/scoring.ts (współdzielony z Workerem)
+export function gradeFor(absDeltaMs: number): Grade {
+  if (absDeltaMs <= CONFIG.windowsMs.perfect) return 'perfect';
+  if (absDeltaMs <= CONFIG.windowsMs.good) return 'good';
+  if (absDeltaMs <= CONFIG.windowsMs.ok) return 'ok';
   return 'miss';
 }
+```
+
+```ts
+// engine/judge.ts
+import { CONFIG } from './config';
+import { gradeFor } from './scoring';
 
 export type TapResult =
-  | { kind: 'hit'; note: PlayableNote; delta: number; grade: Grade }
+  | { kind: 'hit'; note: PlayableNote; deltaMs: number; grade: Grade }
   | { kind: 'empty'; instrument: InstrumentId };
 
 export function judgeTap(
@@ -86,16 +90,17 @@ export function judgeTap(
   songStart: number,
   notes: PlayableNote[],    // posortowane rosnąco po time, niepuste
 ): TapResult {
-  const w = CONFIG.windows.ok;
+  const w = CONFIG.windowsMs.ok;
   for (const n of notes) {
     if (n.hit || n.grade === 'miss') continue;
-    const delta = tapTime - (songStart + n.time);
-    if (delta < -w) break;
-    if (delta <= w) {
-      const grade = gradeFor(Math.abs(delta));
+    const deltaMs = Math.round((tapTime - (songStart + n.time)) * 1000);
+    if (deltaMs < -w) break;
+    if (deltaMs <= w) {
+      const grade = gradeFor(Math.abs(deltaMs));
       n.hit = true;
       n.grade = grade;
-      return { kind: 'hit', note: n, delta, grade };
+      n.deltaMs = deltaMs;
+      return { kind: 'hit', note: n, deltaMs, grade };
     }
   }
   return { kind: 'empty', instrument: nearestNote(tapTime - songStart, notes).instrument };
@@ -110,9 +115,11 @@ function nearestNote(t: number, notes: PlayableNote[]): PlayableNote {
 
 Zasada dopasowania: kliknięcie zalicza **najwcześniejszą** niezaliczoną nutę, której okno `ok` obejmuje moment kliknięcia, a nie nutę najbliższą. Dzięki temu przy gęstych nutach kolejność trafień odpowiada kolejności nut. Minimalny odstęp nut (`04-chart-format.md`, pkt 5) ogranicza sytuacje, w których jedno kliknięcie mieści się w oknach kilku nut. Kompromis opisuje ADR-009.
 
+Ocena jest liczona na błędzie zaokrąglonym do całych milisekund (`deltaMs`), a okna w `CONFIG.windowsMs` są liczbami całkowitymi. Ta sama wartość `deltaMs` trafia do serwera w `hits` (`06-backend-and-data.md`), więc ocena klienta i serwera jest identyczna także na granicach okien.
+
 Optymalizacja: lista nut jest posortowana, więc przegląd można zaczynać od wskaźnika (`cursor`) pierwszej niezaliczonej nuty zamiast od początku. Dla map o setkach nut pełny przegląd jest akceptowalny.
 
-Brak kliknięcia: nuta jest oznaczana jako `miss`, gdy `ctx.currentTime > songStart + n.time + windows.ok`.
+Brak kliknięcia: nuta jest oznaczana jako `miss`, gdy `ctx.currentTime > songStart + n.time + windowsMs.ok / 1000`.
 
 ### Puste kliknięcie
 
@@ -132,27 +139,40 @@ Procedura:
 
 1. Odtwarzany jest metronom (np. 100 BPM), 10 uderzeń z sygnałem dźwiękowym i wizualnym.
 2. Gracz stuka równo z uderzeniami.
-3. Pierwsze 2 stuknięcia są odrzucane (rozgrzewka).
-4. Dla pozostałych: `d_i = czas_stuknięcia_i - czas_uderzenia_i`.
-5. `calibrationOffset = mediana(d_i)`. Mediana odporna jest na pojedyncze odstające wartości.
+3. Każde stuknięcie jest przypisywane do najbliższego uderzenia metronomu, a nie do uderzenia o tym samym numerze. Pominięte lub podwójne stuknięcie nie przesuwa więc kolejnych par.
+4. Stuknięcia przypisane do pierwszych 2 uderzeń są odrzucane (rozgrzewka). Przy kilku stuknięciach przypisanych do jednego uderzenia liczy się najbliższe.
+5. Dla każdego uderzenia z przypisanym stuknięciem: `d_k = czas_stuknięcia - czas_uderzenia_k`; `calibrationOffset = mediana(d_k)`. Mediana odporna jest na pojedyncze odstające wartości. Przy mniej niż 5 parach pomiar jest odrzucany.
 6. Wynik jest ograniczany do przedziału +/- 0,3 s i zapisywany w `localStorage` (zawsze w `try/catch`) razem z metodą zegara: `{ "offset": 0.042, "method": "output-timestamp" }` pod kluczem `hitline.calibration`.
 7. Jeśli rozrzut (np. odchylenie bezwzględne od mediany) przekracza próg, UI proponuje ponowną kalibrację.
 
 Czasy stuknięć w kalibracji są przeliczane tą samą funkcją `eventToAudioTime` i tą samą metodą co w grze. Jeśli przy starcie gry `detectClockMethod` zwraca inną metodę niż zapisana, zapisany offset jest nieważny: gra używa offsetu 0 i proponuje ponowną kalibrację.
 
 ```ts
+// engine/calibration.ts
 export function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
   const m = s.length >> 1;
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-export function computeOffset(taps: number[], clicks: number[], skip = 2): number {
-  const ds = taps.slice(skip).map((t, i) => t - clicks[i + skip]);
-  const off = median(ds);
-  return Math.max(-0.3, Math.min(0.3, off));
+const MIN_PAIRS = 5;
+
+export function computeOffset(taps: number[], beats: number[], skipBeats = 2): number | null {
+  const interval = beats[1] - beats[0];          // metronom ma stały interwał
+  const best = new Map<number, number>();        // indeks uderzenia -> d
+  for (const t of taps) {
+    const k = Math.round((t - beats[0]) / interval);
+    if (k < skipBeats || k >= beats.length) continue;
+    const d = t - beats[k];
+    const prev = best.get(k);
+    if (prev === undefined || Math.abs(d) < Math.abs(prev)) best.set(k, d);
+  }
+  if (best.size < MIN_PAIRS) return null;
+  return Math.max(-0.3, Math.min(0.3, median([...best.values()])));
 }
 ```
+
+Przypisanie do najbliższego uderzenia działa, dopóki rzeczywisty offset jest mniejszy niż połowa interwału metronomu (przy 100 BPM: 0,3 s, czyli tyle, ile wynosi górne ograniczenie offsetu). `null` oznacza pomiar odrzucony; UI proponuje ponowienie.
 
 W ocenie trafienia offset jest odejmowany: `tapTime = rawTapTime - calibrationOffset`.
 
@@ -170,15 +190,18 @@ const LOOKAHEAD = 0.12;     // s
 const TICK_MS = 25;
 
 export class Scheduler {
-  private idx = 0;
+  private idx: number;
   private timer: number | null = null;
 
   constructor(
     private ctx: AudioContext,
-    private notes: { time: number; instrument: InstrumentId }[], // posortowane
+    private notes: BackingNote[],   // posortowane rosnąco po time
     private songStart: number,
     private play: (inst: InstrumentId, when: number) => void,
-  ) {}
+    startIndex = 0,                 // pierwsza nuta do zaplanowania, używane po pauzie
+  ) {
+    this.idx = startIndex;
+  }
 
   start() {
     this.timer = window.setInterval(() => this.tick(), TICK_MS);
@@ -207,10 +230,26 @@ Timer (`setInterval`) służy wyłącznie do cyklicznego sprawdzania. Moment odt
 Pauza następuje po zdarzeniu `visibilitychange` (karta ukryta) lub po wybraniu pauzy przez gracza.
 
 1. `scheduler.stop()`, następnie `synth.stopAll()`: zatrzymanie z krótkim zanikiem wszystkich źródeł, także tych zaplanowanych z wyprzedzeniem na moment po pauzie.
-2. `await ctx.suspend()`. `currentTime` przestaje rosnąć, więc pozycja w utworze jest zachowana: `pausePos = ctx.currentTime - songStart`.
+2. `await ctx.suspend()`. `currentTime` przestaje rosnąć, więc pozycja w utworze jest zachowana: `pausePos = ctx.currentTime - songStart`, zapisywana w `SessionState.frozenAt`.
 3. Ekran pauzy. Wznowienie wymaga gestu gracza (przycisk „Wznów”), bo część przeglądarek mobilnych nie pozwala na `resume()` bez gestu.
-4. `await ctx.resume()`, potem `songStart += COUNTDOWN` (domyślnie 3 s) i nowy `Scheduler` z przesuniętym `songStart`. Nuty tła z przeszłości są pomijane przez warunek w `tick()`.
-5. Przez czas odliczania renderer pokazuje zamrożony stan z `pausePos`, a kliknięcia są ignorowane. Po odliczaniu gra toczy się dalej od tego samego miejsca.
+4. Wznowienie według poniższego kodu: nowe `songStart` tak, by pozycja `pausePos` przypadła dokładnie na koniec odliczania, i nowy `Scheduler` zaczynający od pierwszej nuty tła z `time >= pausePos`.
+5. Przez czas odliczania renderer pokazuje zamrożony stan z `pausePos`, a kliknięcia są ignorowane (`phase === 'countdown'`). Po odliczaniu gra toczy się dalej od tego samego miejsca.
+
+```ts
+// game/controller.ts
+async function resumeFromPause(s: SessionState, backing: BackingNote[]) {
+  await ctx.resume();
+  const pausePos = s.frozenAt!;
+  const goAt = ctx.currentTime + CONFIG.countdown;
+  s.songStart = goAt - pausePos;
+  const from = backing.findIndex(n => n.time >= pausePos);
+  scheduler = new Scheduler(ctx, backing, s.songStart, synth.play, from === -1 ? backing.length : from);
+  scheduler.start();
+  s.phase = 'countdown';            // po goAt: phase = 'playing', frozenAt = null
+}
+```
+
+Samo przesunięcie `songStart` bez `startIndex` nie wystarcza: nuty tła z przedziału `[pausePos - countdown, pausePos)` wypadłyby wtedy w przyszłości względem `currentTime` i zagrałyby w trakcie odliczania.
 
 ## 8. Renderowanie
 
@@ -218,14 +257,16 @@ Pauza następuje po zdarzeniu `visibilitychange` (karta ukryta) lub po wybraniu 
 function frame() {
   const now = Math.max(ctx.currentTime - songStart, frozenAt ?? -Infinity); // sekundy od początku
   for (const n of visibleNotes(now)) {
-    const progress = 1 - (n.time - now) / APPROACH_TIME; // 0 na górze, 1 na linii
+    const progress = 1 - (n.time - now) / CONFIG.approachTime; // 0 na górze, 1 na linii
     drawCircle(x, progress * hitLineY, n);
   }
   requestAnimationFrame(frame);
 }
 ```
 
-`APPROACH_TIME` (czas spadania, np. 1,2 s) jest parametrem konfiguracyjnym. Pozycja zależy wyłącznie od zegara audio, więc gubienie klatek nie rozsynchronizuje gry z dźwiękiem. `frozenAt` jest równe `pausePos` w trakcie odliczania po pauzie i `null` w pozostałych przypadkach.
+`CONFIG.approachTime` (czas spadania, np. 1,2 s) jest parametrem konfiguracyjnym. Pozycja zależy wyłącznie od zegara audio, więc gubienie klatek nie rozsynchronizuje gry z dźwiękiem. `frozenAt` jest równe `pausePos` w trakcie odliczania po pauzie i `null` w pozostałych przypadkach.
+
+Start rundy: `songStart = ctx.currentTime + max(0.1, CONFIG.approachTime - notes[0].time)`. Jeśli wprowadzenie mapy jest krótsze niż czas spadania (np. 4 beaty przy 240 BPM to 1,0 s), gra dokłada brakujący zapas, żeby pierwsze kółko pojawiło się na górze ekranu, a nie w połowie drogi. Mapa nie musi spełniać dodatkowej reguły.
 
 ## 9. Znane problemy i obejścia
 

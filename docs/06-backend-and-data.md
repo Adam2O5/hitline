@@ -72,7 +72,8 @@ Wynik pochodzi z klienta, więc nigdy nie jest w pełni zaufany. Wdrażaj poziom
 
 - Serwer przelicza punkty z `hits` i `emptyTaps` według tych samych progów i kary co klient (współdzielony moduł `engine/scoring`).
 - Odrzuca wynik, jeśli przeliczona suma różni się od zgłoszonej.
-- Odrzuca indeksy spoza zakresu, powtórzone indeksy oraz `deltaMs` poza przedziałem +/- 150 ms.
+- Odrzuca indeksy spoza zakresu, powtórzone indeksy oraz `deltaMs` niebędące liczbą całkowitą lub poza przedziałem +/- `CONFIG.windowsMs.ok`.
+- Ocena serwera korzysta z tego samego `gradeFor` z `engine/scoring` na tych samych całkowitych `deltaMs`, które klient zapisał przy ocenie (`03-timing-and-latency.md`, pkt 4), więc wynik obu stron jest identyczny.
 
 **Poziom 3: heurystyki nadużyć (opcjonalny)**
 

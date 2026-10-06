@@ -17,17 +17,18 @@ Zegar jest wstrzykiwany, więc logika `engine` nie wymaga przeglądarki.
 ```ts
 // engine/judge.test.ts
 import { describe, it, expect } from 'vitest';
-import { gradeFor, judgeTap } from './judge';
+import { judgeTap } from './judge';
+import { gradeFor } from './scoring';
 
 describe('gradeFor', () => {
-  it('klasyfikuje progi', () => {
-    expect(gradeFor(0.000)).toBe('perfect');
-    expect(gradeFor(0.040)).toBe('perfect');
-    expect(gradeFor(0.041)).toBe('good');
-    expect(gradeFor(0.090)).toBe('good');
-    expect(gradeFor(0.091)).toBe('ok');
-    expect(gradeFor(0.150)).toBe('ok');
-    expect(gradeFor(0.151)).toBe('miss');
+  it('klasyfikuje progi (ms)', () => {
+    expect(gradeFor(0)).toBe('perfect');
+    expect(gradeFor(40)).toBe('perfect');
+    expect(gradeFor(41)).toBe('good');
+    expect(gradeFor(90)).toBe('good');
+    expect(gradeFor(91)).toBe('ok');
+    expect(gradeFor(150)).toBe('ok');
+    expect(gradeFor(151)).toBe('miss');
   });
 });
 
@@ -62,6 +63,21 @@ describe('judgeTap', () => {
     expect(judgeTap(1.0, 0, notes).kind).toBe('hit');
     expect(judgeTap(1.0, 0, notes).kind).toBe('empty');
   });
+
+  it('nie dopasowuje nuty oznaczonej jako miss', () => {
+    const notes = [{ ...mk(1.0), grade: 'miss' as const }];
+    expect(judgeTap(1.0, 0, notes).kind).toBe('empty');
+  });
+
+  it('ocenia na delcie zaokrąglonej do ms i zapisuje ją w nucie', () => {
+    const a = [mk(1.0)];
+    const ra = judgeTap(1.0404, 0, a);
+    expect(ra.kind === 'hit' && ra.grade).toBe('perfect');
+    expect(a[0].deltaMs).toBe(40);
+    const b = [mk(1.0)];
+    const rb = judgeTap(1.0406, 0, b);
+    expect(rb.kind === 'hit' && rb.grade).toBe('good');
+  });
 });
 ```
 
@@ -78,9 +94,9 @@ it('odejmuje karę za puste kliknięcia i nie schodzi poniżej zera', () => {
 ```
 
 ```ts
-// engine/clock.test.ts
+// engine/calibration.test.ts
 import { describe, it, expect } from 'vitest';
-import { median, computeOffset } from './clock';
+import { median, computeOffset } from './calibration';
 
 describe('kalibracja', () => {
   it('mediana nieparzysta i parzysta', () => {
@@ -88,11 +104,19 @@ describe('kalibracja', () => {
     expect(median([4, 1, 3, 2])).toBe(2.5);
   });
 
-  it('odrzuca pierwsze stuknięcia i ucina do +/-0.3 s', () => {
-    const clicks = [0, 1, 2, 3, 4, 5];
-    const taps   = [0.9, 1.5, 2.1, 3.1, 4.1, 5.1];
-    expect(computeOffset(taps, clicks, 2)).toBeCloseTo(0.1, 3);
-    expect(computeOffset([10, 11, 12, 13], [0, 1, 2, 3], 0)).toBe(0.3);
+  const beats = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  it('odrzuca rozgrzewkę i paruje stuknięcia z najbliższym uderzeniem', () => {
+    const taps = [0.5, 1.4, 2.1, 3.1, 4.1, 6.1, 7.1, 7.3, 8.1, 9.1]; // brak stuknięcia przy 5, podwójne przy 7
+    expect(computeOffset(taps, beats, 2)).toBeCloseTo(0.1, 3);
+  });
+
+  it('ucina do +/-0.3 s', () => {
+    expect(computeOffset(beats.map(b => b + 0.4), beats, 2)).toBe(0.3);
+  });
+
+  it('odrzuca pomiar przy zbyt małej liczbie par', () => {
+    expect(computeOffset([2.1, 3.1, 4.1], beats, 2)).toBeNull();
   });
 });
 ```
@@ -100,7 +124,7 @@ describe('kalibracja', () => {
 ```ts
 // engine/chart.test.ts
 import { describe, it, expect } from 'vitest';
-import { toPlayable, maxScore } from './chart';
+import { toPlayable, toBacking, maxScore } from './chart';
 
 it('konwertuje beaty na sekundy i rozwija pętle', () => {
   const chart: any = {
@@ -117,9 +141,23 @@ it('liczy maksymalny wynik z uwzględnieniem pętli', () => {
   const chart: any = { loops: 2, rounds: [{ play: [1, 2, 3] }, { play: [1, 2] }] };
   expect(maxScore(chart)).toBe(1000);
 });
+
+it('toBacking pomija chybione nuty po indeksie globalnym, ale nie ambient', () => {
+  const chart: any = {
+    bpm: 60, leadInBeats: 0, lengthBeats: 2, loops: 2,
+    ambient: [{ b: 0, i: 'string' }],
+    rounds: [{ play: [{ b: 0, i: 'kick808' }, { b: 1, i: 'snare' }] }, { play: [{ b: 0.5, i: 'hat' }] }],
+  };
+  expect(toBacking(chart, 1)).toHaveLength(6);                  // 4 nuty rundy 1 + 2 ambient
+  const b = toBacking(chart, 1, new Set([1]));                   // snare w pierwszej pętli
+  expect(b).toHaveLength(5);
+  expect(b.some(n => n.instrument === 'snare' && n.time === 1)).toBe(false);
+});
 ```
 
-Walidacja map: osobne przypadki dla każdej reguły z `04-chart-format.md` (pkt 5), w szczególności odstęp nut krótszy niż `CONFIG.windows.ok` w środku pętli i na granicy pętli, `loops` poza zakresem oraz runda bez nut.
+Start rundy: test, że przy wprowadzeniu krótszym niż `CONFIG.approachTime` pierwsza nuta wypada nie wcześniej niż `approachTime` po starcie rundy. Pauza: test kontrolera z atrapą `AudioContext`, że po wznowieniu nie zaplanowano żadnej nuty tła z `time < pausePos`.
+
+Walidacja map: osobne przypadki dla każdej reguły z `04-chart-format.md` (pkt 5), w szczególności odstęp nut krótszy niż `CONFIG.windowsMs.ok` w środku pętli i na granicy pętli, `loops` poza zakresem oraz runda bez nut.
 
 Testy API: dla `POST /api/scores` sprawdź przypadki graniczne:
 

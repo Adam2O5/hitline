@@ -69,7 +69,7 @@ Powyższy przykład jest skrócony (2 z 5 rund). Pełna mapa musi zawierać dok�
 2. Tło rundy N tworzą nuty `play` rund 1..N-1 (każda powtórzona `loops` razy) oraz `ambient`. Odtwarza je automatycznie `Scheduler`.
 3. Nuta trafiona przez gracza odtwarza dźwięk natychmiast. Nuta chybiona w rundzie N, w tle kolejnych rund:
    - wariant domyślny: jest odtwarzana w poprawnym miejscu (tło jest zawsze kompletne);
-   - wariant alternatywny (do przetestowania): w tle nie gra nuta o tym samym indeksie w tej samej pętli, w której gracz chybił. Gracz „słyszy” własne błędy.
+   - wariant alternatywny (do przetestowania): w tle nie gra dokładnie ta nuta (ta sama pętla i pozycja), w którą gracz nie trafił. Gracz „słyszy” własne błędy.
 4. `ambient` nie podlega ocenie i nie wpływa na wynik.
 
 Decyzja o wariancie jest zapisana w `09-risks-and-decisions.md` (ADR-006, do podjęcia po testach z graczami). Model składania tła opisuje ADR-008.
@@ -86,18 +86,27 @@ Decyzja o wariancie jest zapisana w `09-risks-and-decisions.md` (ADR-006, do pod
 - `rounds.length === 5`, każda runda ma co najmniej jedną nutę `play`
 - każda nuta (w `play` i `ambient`): `0 <= b < lengthBeats`, `i` należy do `InstrumentId`
 - nuty w każdej tablicy posortowane rosnąco po `b`
-- minimalny odstęp między kolejnymi nutami `play` jednej rundy, **w sekundach**, nie mniejszy niż `CONFIG.windows.ok`. Sprawdzany także na granicy pętli (ostatnia nuta pętli i pierwsza nuta następnej), jeśli `loops > 1`. Uzasadnienie: ADR-009.
+- minimalny odstęp między kolejnymi nutami `play` jednej rundy, **w sekundach**, nie mniejszy niż `CONFIG.windowsMs.ok / 1000`. Sprawdzany także na granicy pętli (ostatnia nuta pętli i pierwsza nuta następnej), jeśli `loops > 1`. Uzasadnienie: ADR-009.
 
 Zalecana implementacja: biblioteka walidacji schematu (np. Zod) lub JSON Schema z walidatorem. Reguła minimalnego odstępu wymaga osobnej funkcji, bo zależy od `bpm` i `CONFIG`. Walidacja uruchamiana jest w trzech miejscach: przy ładowaniu w kliencie, w skrypcie `npm run validate:charts` (CI) i w Workerze przy wyliczaniu maksymalnego wyniku.
 
 ## 6. Konwersja na nuty grywalne
 
+Typy `PlayableNote` i `BackingNote` leżą w `engine/types.ts`, żeby `chart.ts` i `session.ts` nie importowały się nawzajem.
+
 ```ts
+// engine/types.ts
+export interface BackingNote { time: number; instrument: InstrumentId }
+export interface PlayableNote extends BackingNote { hit: boolean; grade?: Grade; deltaMs?: number }
+```
+
+```ts
+// engine/chart.ts
 const sec = (chart: Chart, b: number) => (b * 60) / chart.bpm;
 
-function expand(chart: Chart, notes: Note[]): { time: number; instrument: InstrumentId }[] {
+function expand(chart: Chart, notes: Note[]): BackingNote[] {
   const lead = sec(chart, chart.leadInBeats);
-  const out: { time: number; instrument: InstrumentId }[] = [];
+  const out: BackingNote[] = [];
   for (let loop = 0; loop < chart.loops; loop++) {
     for (const n of notes) {
       out.push({ time: lead + sec(chart, loop * chart.lengthBeats + n.b), instrument: n.i });
@@ -110,20 +119,30 @@ export function toPlayable(chart: Chart, roundIndex: number): PlayableNote[] {
   return expand(chart, chart.rounds[roundIndex].play).map(n => ({ ...n, hit: false }));
 }
 
-export function toBacking(chart: Chart, roundIndex: number): { time: number; instrument: InstrumentId }[] {
-  const layers = chart.rounds.slice(0, roundIndex).map(r => r.play);
-  if (chart.ambient) layers.push(chart.ambient);
-  return layers.flatMap(l => expand(chart, l)).sort((a, b) => a.time - b.time);
+export function roundOffset(chart: Chart, roundIndex: number): number {
+  return chart.rounds.slice(0, roundIndex).reduce((s, r) => s + r.play.length * chart.loops, 0);
 }
 
-export function maxScore(chart: Chart, pointsPerPerfect = 100): number {
-  return chart.rounds.reduce((s, r) => s + r.play.length * chart.loops * pointsPerPerfect, 0);
+export function toBacking(chart: Chart, roundIndex: number, missed?: Set<number>): BackingNote[] {
+  const out: BackingNote[] = [];
+  for (let r = 0; r < roundIndex; r++) {
+    const base = roundOffset(chart, r);
+    expand(chart, chart.rounds[r].play).forEach((n, j) => {
+      if (!missed?.has(base + j)) out.push(n);
+    });
+  }
+  if (chart.ambient) out.push(...expand(chart, chart.ambient));
+  return out.sort((a, b) => a.time - b.time);
+}
+
+export function maxScore(chart: Chart): number {
+  return roundOffset(chart, chart.rounds.length) * CONFIG.points.perfect;
 }
 ```
 
-`toBacking` realizuje wariant domyślny z pkt 4. Wariant alternatywny wymaga przekazania wyników poprzednich rund i pominięcia chybionych nut.
+Indeks globalny nuty to pozycja w połączonej liście `toPlayable(chart, 0..4)`, czyli rundy po kolei, w każdej pętle po kolei: `roundOffset(chart, r) + j`. Tego samego indeksu używają `hits` wysyłane do serwera (`06-backend-and-data.md`) i zbiór `missed`.
 
-Indeks nuty w wyniku wysyłanym do serwera (`hits`, patrz `06-backend-and-data.md`) to pozycja w połączonej liście `toPlayable(chart, 0..4)`, czyli rundy po kolei, w każdej pętle po kolei.
+Bez `missed` funkcja `toBacking` realizuje wariant domyślny z pkt 4. Wariant alternatywny z ADR-006 to przekazanie zbioru globalnych indeksów chybionych nut poprzednich rund; `ambient` nigdy nie jest pomijany.
 
 ## 7. Wersjonowanie
 
