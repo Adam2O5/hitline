@@ -118,6 +118,22 @@ Plan wyjścia dla R-03 i R-07: logika danych jest ukryta za cienkim interfejsem 
   - prywatność: brak zapisu IP, retencja top 1000 wyników na mapę przez codzienny Cron Trigger.
 - **Konsekwencje:** jeden gracz może zająć wiele miejsc w top 50; usuwanie wpisów jest ręczne; wymagana weryfikacja dostępności limitera.
 
+### ADR-013: `Session` jako czysta logika, `game/controller` jako warstwa łącząca
+
+- **Status:** przyjęta.
+- **Kontekst:** pierwsza wersja diagramu klas dawała `Session` zależność od DOM i audio (`onTap(rawEvent)`, posiadanie `Scheduler`), co łamało zasadę testowalności `engine` bez przeglądarki.
+- **Opcje:** (A) osobny `game/controller.ts`; (B) kontroler w `ui/round.ts`; (C) `Session` zależna od audio.
+- **Decyzja:** (A). `Session` dostaje czas jako liczbę (`onTap(tapTime)`, `update(now)`); kontroler przelicza zdarzenia, odtwarza dźwięki, zarządza `Scheduler` i pauzą.
+- **Konsekwencje:** testy `session` w Node bez atrap Web Audio; jeden dodatkowy katalog `src/game/`; testy kontrolera wymagają atrapy `AudioContext`.
+
+### ADR-014: Ocena na całkowitych milisekundach
+
+- **Status:** przyjęta.
+- **Kontekst:** w walidacji poziomu 2 serwer dostaje `deltaMs` jako liczbę całkowitą. Ocena klienta na dokładnej delcie mogłaby różnić się od oceny serwera na granicach okien (np. 40,4 ms: klient `good`, serwer `perfect`).
+- **Opcje:** (A) okna w całych ms i ocena na `Math.round(delta * 1000)`; (B) okna w sekundach i zaokrąglanie delty przed porównaniem.
+- **Decyzja:** (A). `CONFIG.windowsMs`, `gradeFor` w `engine/scoring` współdzielonym z Workerem; `deltaMs` zapisywane w nucie i wysyłane bez zmian.
+- **Konsekwencje:** identyczna ocena po obu stronach; rozdzielczość oceny 1 ms, pomijalna wobec opóźnień wejścia i wyjścia.
+
 ## 3. Procedura przeglądu limitów
 
 Co kwartał oraz przed każdym wdrożeniem publicznym:

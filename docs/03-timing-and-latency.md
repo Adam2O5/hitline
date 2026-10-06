@@ -143,7 +143,7 @@ Procedura:
 4. Stuknięcia przypisane do pierwszych 2 uderzeń są odrzucane (rozgrzewka). Przy kilku stuknięciach przypisanych do jednego uderzenia liczy się najbliższe.
 5. Dla każdego uderzenia z przypisanym stuknięciem: `d_k = czas_stuknięcia - czas_uderzenia_k`; `calibrationOffset = mediana(d_k)`. Mediana odporna jest na pojedyncze odstające wartości. Przy mniej niż 5 parach pomiar jest odrzucany.
 6. Wynik jest ograniczany do przedziału +/- 0,3 s i zapisywany w `localStorage` (zawsze w `try/catch`) razem z metodą zegara: `{ "offset": 0.042, "method": "output-timestamp" }` pod kluczem `hitline.calibration`.
-7. Jeśli rozrzut (np. odchylenie bezwzględne od mediany) przekracza próg, UI proponuje ponowną kalibrację.
+7. Rozrzut to mediana odchyleń bezwzględnych od mediany (`median(|d_k - offset|)`). Jeśli przekracza `CONFIG.calibrationMaxSpreadMs` (domyślnie 40 ms), UI proponuje ponowną kalibrację.
 
 Czasy stuknięć w kalibracji są przeliczane tą samą funkcją `eventToAudioTime` i tą samą metodą co w grze. Jeśli przy starcie gry `detectClockMethod` zwraca inną metodę niż zapisana, zapisany offset jest nieważny: gra używa offsetu 0 i proponuje ponowną kalibrację.
 

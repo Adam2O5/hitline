@@ -25,6 +25,7 @@ export const CONFIG = {
   emptyTapPenalty: 10,
   approachTime: 1.2,   // s
   countdown: 3,        // s
+  calibrationMaxSpreadMs: 40,
 } as const;
 ```
 2. `engine/scoring.ts`: `gradeFor` (na całkowitych ms) i `roundScore`:

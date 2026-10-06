@@ -46,7 +46,7 @@ Szczegóły składni `[assets]`, `[[ratelimits]]` i kolejności obsługi żąda�
 {
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc && tsc -p tsconfig.worker.json && vite build",
     "dev:api": "wrangler dev",
     "test": "vitest run",
     "validate:charts": "tsx scripts/validate-charts.ts",
@@ -56,6 +56,8 @@ Szczegóły składni `[assets]`, `[[ratelimits]]` i kolejności obsługi żąda�
   }
 }
 ```
+
+`build` sprawdza typy dwukrotnie: `tsconfig.json` (klient, z DOM) i `tsconfig.worker.json` (Worker, bez DOM). Drugi przebieg wykrywa użycie API przeglądarki w modułach `engine` importowanych przez Worker.
 
 ## 4. Pierwsze uruchomienie
 
