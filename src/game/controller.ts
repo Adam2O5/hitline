@@ -34,12 +34,14 @@ export class GameController {
 
   attach(): void {
     this.area.addEventListener('pointerdown', this.onPointerDown);
+    this.area.addEventListener('contextmenu', this.onContextMenu);
     window.addEventListener('keydown', this.onKeyDown);
     document.addEventListener('visibilitychange', this.onVisibilityChange);
   }
 
   detach(): void {
     this.area.removeEventListener('pointerdown', this.onPointerDown);
+    this.area.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('keydown', this.onKeyDown);
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
     cancelAnimationFrame(this.raf);
@@ -115,9 +117,13 @@ export class GameController {
       this.pause();
       return;
     }
-    if (e.code !== 'Space' || e.repeat) return;
+    if (e.code !== 'Space' || this.session.getState().phase !== 'playing') return;
     e.preventDefault();
-    this.tap(e);
+    if (!e.repeat) this.tap(e);
+  };
+
+  private onContextMenu = (e: Event): void => {
+    e.preventDefault();
   };
 
   private onVisibilityChange = (): void => {

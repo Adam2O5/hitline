@@ -1,4 +1,6 @@
 import { CONFIG } from '../engine/config.ts';
+import { sec, type Chart } from '../engine/chart.ts';
+import { instrumentsOf } from '../ui/labels.ts';
 import type { TapResult } from '../engine/judge.ts';
 import type { SessionState } from '../engine/session.ts';
 import type { Grade, InstrumentId } from '../engine/types.ts';
@@ -32,7 +34,9 @@ export class Renderer {
   private feedbackAt = -Infinity;
   private observer: ResizeObserver;
 
-  constructor(private canvas: HTMLCanvasElement) {
+  private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+  constructor(private canvas: HTMLCanvasElement, private chart: Chart) {
     this.g = canvas.getContext('2d')!;
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(canvas);
@@ -91,7 +95,7 @@ export class Renderer {
 
     const age = now - this.feedbackAt;
     if (age >= 0 && age < FEEDBACK_TIME) {
-      g.globalAlpha = 1 - age / FEEDBACK_TIME;
+      g.globalAlpha = this.reducedMotion.matches ? 1 : 1 - age / FEEDBACK_TIME;
       g.fillStyle = this.feedbackColor;
       g.font = `bold ${Math.round(radius * 1.2)}px system-ui, sans-serif`;
       g.textAlign = 'center';
@@ -108,12 +112,23 @@ export class Renderer {
       g.textBaseline = 'alphabetic';
     }
 
+    const { chart } = this;
+    const first = s.notes[0]?.time ?? 0;
+    if (s.phase === 'playing' && now < first - 0.3) {
+      g.fillStyle = '#fff';
+      g.font = `bold ${Math.round(radius * 1.3)}px system-ui, sans-serif`;
+      g.textAlign = 'center';
+      g.fillText(`Grasz: ${instrumentsOf(chart, s.roundIndex)}`, x, h * 0.35);
+    }
+
+    const loopLen = sec(chart, chart.lengthBeats);
+    const loop = Math.min(chart.loops, Math.max(1, Math.floor((now - sec(chart, chart.leadInBeats)) / loopLen) + 1));
     g.fillStyle = '#ccc';
     g.font = '16px system-ui, sans-serif';
     g.textAlign = 'left';
-    g.fillText(`Runda ${s.roundIndex + 1}/${s.perRound.length}`, 16, 28);
+    g.fillText(`Runda ${s.roundIndex + 1}/${s.perRound.length} · pętla ${loop}/${chart.loops}`, 16, 28);
     g.textAlign = 'right';
-    g.fillText(`${liveScore(s)} pkt`, w - 16, 28);
+    g.fillText(`${liveScore(s)} pkt`, w - 72, 28);
   }
 
   private resize(): void {

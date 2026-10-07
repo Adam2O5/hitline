@@ -3,6 +3,17 @@ import type { InstrumentId } from '../engine/types.ts';
 const MAX_VOICES = 16;
 const FADE = 0.015;
 
+export const PARAMS = {
+  kick808: { startHz: 150, endHz: 45, sweep: 0.12, gain: 0.9, decay: 0.8 },
+  snare: { hpHz: 1500, noiseGain: 0.6, noiseDecay: 0.2, toneHz: 220, toneGain: 0.4, toneDecay: 0.1 },
+  clap: { bpHz: 1200, gain: 0.8, tail: 0.15 },
+  hat: { hpHz: 7000, gain: 0.4, decay: 0.04 },
+  openhat: { hpHz: 7000, gain: 0.4, decay: 0.25 },
+  bass808: { drive: 2, gain: 0.7, decay: 0.6 },
+  string: { lpHz: 1200, gain: 0.25, attack: 0.05, decay: 0.6, detune: 7 },
+  perc: { hz: 800, gain: 0.5, decay: 0.08 },
+} satisfies Record<InstrumentId, Record<string, number>>;
+
 interface Voice {
   out: GainNode;
   sources: AudioScheduledSourceNode[];
@@ -12,8 +23,16 @@ interface Voice {
 let ctx: AudioContext | null = null;
 let master: GainNode;
 let noise: AudioBuffer;
-let saturation: Float32Array<ArrayBuffer>;
+let saturation: { drive: number; curve: Float32Array<ArrayBuffer> } | null = null;
 const voices: Voice[] = [];
+
+function saturationCurve(drive: number): Float32Array<ArrayBuffer> {
+  if (saturation?.drive === drive) return saturation.curve;
+  const curve = new Float32Array(256);
+  for (let k = 0; k < curve.length; k++) curve[k] = Math.tanh(drive * ((k / (curve.length - 1)) * 2 - 1));
+  saturation = { drive, curve };
+  return curve;
+}
 
 export function initSynth(c: AudioContext): void {
   if (ctx === c) return;
@@ -28,11 +47,6 @@ export function initSynth(c: AudioContext): void {
   noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
   const d = noise.getChannelData(0);
   for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1;
-
-  saturation = new Float32Array(256);
-  for (let k = 0; k < saturation.length; k++) {
-    saturation[k] = Math.tanh(2 * ((k / (saturation.length - 1)) * 2 - 1));
-  }
 }
 
 export function play(inst: InstrumentId, when: number, pitch?: number): void {
@@ -113,83 +127,89 @@ function osc(c: AudioContext, type: OscillatorType, frequency: number): Oscillat
   return o;
 }
 
-function hat(c: AudioContext, when: number, decay: number): void {
+function hat(c: AudioContext, when: number, p: { hpHz: number; gain: number; decay: number }): void {
   const v = voice(c);
   const n = noiseSource(c);
-  n.connect(filter(c, 'highpass', 7000)).connect(env(c, when, 0.4, decay)).connect(v.out);
-  add(v, n, when, decay + 0.02);
+  n.connect(filter(c, 'highpass', p.hpHz)).connect(env(c, when, p.gain, p.decay)).connect(v.out);
+  add(v, n, when, p.decay + 0.02);
 }
 
 const INSTRUMENTS: Record<InstrumentId, (c: AudioContext, when: number, pitch?: number) => void> = {
   kick808(c, when) {
+    const p = PARAMS.kick808;
     const v = voice(c);
-    const o = osc(c, 'sine', 150);
-    o.frequency.setValueAtTime(150, when);
-    o.frequency.exponentialRampToValueAtTime(45, when + 0.12);
-    o.connect(env(c, when, 0.9, 0.8)).connect(v.out);
-    add(v, o, when, 0.85);
+    const o = osc(c, 'sine', p.startHz);
+    o.frequency.setValueAtTime(p.startHz, when);
+    o.frequency.exponentialRampToValueAtTime(p.endHz, when + p.sweep);
+    o.connect(env(c, when, p.gain, p.decay)).connect(v.out);
+    add(v, o, when, p.decay + 0.05);
   },
 
   snare(c, when) {
+    const p = PARAMS.snare;
     const v = voice(c);
     const n = noiseSource(c);
-    n.connect(filter(c, 'highpass', 1500)).connect(env(c, when, 0.6, 0.2)).connect(v.out);
-    add(v, n, when, 0.25);
-    const t = osc(c, 'triangle', 220);
-    t.connect(env(c, when, 0.4, 0.1)).connect(v.out);
-    add(v, t, when, 0.15);
+    n.connect(filter(c, 'highpass', p.hpHz)).connect(env(c, when, p.noiseGain, p.noiseDecay)).connect(v.out);
+    add(v, n, when, p.noiseDecay + 0.05);
+    const t = osc(c, 'triangle', p.toneHz);
+    t.connect(env(c, when, p.toneGain, p.toneDecay)).connect(v.out);
+    add(v, t, when, p.toneDecay + 0.05);
   },
 
   clap(c, when) {
+    const p = PARAMS.clap;
     const v = voice(c);
     const n = noiseSource(c);
     const g = c.createGain();
     g.gain.setValueAtTime(0, when);
     for (let k = 0; k < 3; k++) {
       const t = when + k * 0.012;
-      g.gain.setValueAtTime(0.8, t);
+      g.gain.setValueAtTime(p.gain, t);
       g.gain.exponentialRampToValueAtTime(0.05, t + 0.01);
     }
     const last = when + 0.036;
-    g.gain.setValueAtTime(0.8, last);
-    g.gain.exponentialRampToValueAtTime(0.0001, last + 0.15);
-    n.connect(filter(c, 'bandpass', 1200)).connect(g).connect(v.out);
-    add(v, n, when, 0.2);
+    g.gain.setValueAtTime(p.gain, last);
+    g.gain.exponentialRampToValueAtTime(0.0001, last + p.tail);
+    n.connect(filter(c, 'bandpass', p.bpHz)).connect(g).connect(v.out);
+    add(v, n, when, 0.05 + p.tail);
   },
 
   hat(c, when) {
-    hat(c, when, 0.04);
+    hat(c, when, PARAMS.hat);
   },
 
   openhat(c, when) {
-    hat(c, when, 0.25);
+    hat(c, when, PARAMS.openhat);
   },
 
   bass808(c, when, pitch = 33) {
+    const p = PARAMS.bass808;
     const v = voice(c);
     const o = osc(c, 'sine', midiToHz(pitch));
     const ws = c.createWaveShaper();
-    ws.curve = saturation;
-    o.connect(ws).connect(env(c, when, 0.7, 0.6)).connect(v.out);
-    add(v, o, when, 0.65);
+    ws.curve = saturationCurve(p.drive);
+    o.connect(ws).connect(env(c, when, p.gain, p.decay)).connect(v.out);
+    add(v, o, when, p.decay + 0.05);
   },
 
   string(c, when, pitch = 57) {
+    const p = PARAMS.string;
     const v = voice(c);
-    const lp = filter(c, 'lowpass', 1200);
-    lp.connect(env(c, when, 0.25, 0.6, 0.05)).connect(v.out);
-    for (const detune of [-7, 0, 7]) {
+    const lp = filter(c, 'lowpass', p.lpHz);
+    lp.connect(env(c, when, p.gain, p.decay, p.attack)).connect(v.out);
+    for (const detune of [-p.detune, 0, p.detune]) {
       const o = osc(c, 'sawtooth', midiToHz(pitch));
       o.detune.value = detune;
       o.connect(lp);
-      add(v, o, when, 0.7);
+      add(v, o, when, p.attack + p.decay + 0.05);
     }
   },
 
   perc(c, when) {
+    const p = PARAMS.perc;
     const v = voice(c);
-    const o = osc(c, 'sine', 800);
-    o.connect(env(c, when, 0.5, 0.08)).connect(v.out);
-    add(v, o, when, 0.1);
+    const o = osc(c, 'sine', p.hz);
+    o.connect(env(c, when, p.gain, p.decay)).connect(v.out);
+    add(v, o, when, p.decay + 0.02);
   },
 };

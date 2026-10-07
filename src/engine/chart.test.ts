@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import demo from '../../charts/demo-01.json';
+import charts from '../../charts/index.ts';
 import { maxScore, roundDuration, roundOffset, toBacking, toPlayable, type Chart } from './chart.ts';
 import { validateChart, validateSpacing } from './validate.ts';
 
@@ -47,7 +47,7 @@ describe('toBacking', () => {
 describe('validateChart', () => {
   it('akceptuje poprawną mapę i mapy z repozytorium', () => {
     expect(validateChart(base()).ok).toBe(true);
-    expect(validateChart(demo)).toMatchObject({ ok: true });
+    for (const c of Object.values(charts)) expect(validateChart(c), c.id).toMatchObject({ ok: true });
   });
 
   it('odrzuca nieznane pola, złą liczbę rund i nieznany instrument', () => {

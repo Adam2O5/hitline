@@ -20,6 +20,7 @@ export function overlay(parent: HTMLElement, ...children: HTMLElement[]): HTMLDi
   o.append(...children);
   o.addEventListener('pointerdown', e => e.stopPropagation());
   parent.append(o);
+  o.querySelector('button')?.focus();
   return o;
 }
 

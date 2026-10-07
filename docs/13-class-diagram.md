@@ -256,7 +256,7 @@ classDiagram
 
   class Renderer {
     -CanvasRenderingContext2D g
-    +Renderer(canvas)
+    +Renderer(canvas, chart)
     +draw(state, songTime) void
     +feedback(tapResult, at) void
     +dispose() void

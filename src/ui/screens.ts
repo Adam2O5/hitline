@@ -1,24 +1,10 @@
 import { roundDuration, type Chart } from '../engine/chart.ts';
 import type { SessionState } from '../engine/session.ts';
-import type { Grade, InstrumentId } from '../engine/types.ts';
+import type { Grade } from '../engine/types.ts';
+import { instrumentsOf } from './labels.ts';
+import { ABOUT } from '../about.ts';
 import type { CreateChallengeResult, LeaderboardRow, SendResult } from '../net/api.ts';
 import { button, el, overlay, screen } from './dom.ts';
-
-const INSTRUMENT_NAMES: Record<InstrumentId, string> = {
-  kick808: 'kick',
-  snare: 'snare',
-  clap: 'clap',
-  hat: 'hi-hat',
-  openhat: 'open hi-hat',
-  bass808: 'bas 808',
-  string: 'smyczki',
-  perc: 'perkusjonalia',
-};
-
-export function instrumentsOf(chart: Chart, roundIndex: number): string {
-  const ids = [...new Set(chart.rounds[roundIndex].play.map(n => n.i))];
-  return ids.map(i => INSTRUMENT_NAMES[i]).join(', ');
-}
 
 export function showStart(root: HTMLElement, onStart: () => void): void {
   const s = screen(root, el('h1', '', 'Hitline'), el('p', '', 'Dotknij, aby zacząć'));
@@ -30,7 +16,7 @@ export function showMenu(
   root: HTMLElement,
   charts: Chart[],
   best: (chartId: string) => number | null,
-  actions: { onPick: (chart: Chart) => void; onCalibrate: () => void; onRanking: () => void },
+  actions: { onPick: (chart: Chart) => void; onCalibrate: () => void; onRanking: () => void; onAbout: () => void },
   notice = '',
 ): void {
   const list = el('div', 'menu-list');
@@ -49,6 +35,39 @@ export function showMenu(
     list,
     button('Ranking', actions.onRanking, true),
     button('Kalibracja', actions.onCalibrate, true),
+    button('O grze', actions.onAbout, true),
+  );
+}
+
+export function showAbout(root: HTMLElement, onBack: () => void): void {
+  const section = (title: string, ...lines: string[]) => {
+    const s = el('section', 'about-section');
+    s.append(el('h3', '', title), ...lines.map(l => el('p', '', l)));
+    return s;
+  };
+  screen(
+    root,
+    el('h2', '', 'O grze'),
+    section(
+      'Hitline',
+      'Gra rytmiczna na jeden przycisk: trafiaj w rytm, a z każdą rundą beat dokłada kolejną warstwę.',
+      `Autor: ${ABOUT.author}`,
+      `Kontakt: ${ABOUT.contact} (także w sprawie usunięcia wpisu z rankingu).`,
+    ),
+    section(
+      'Licencje',
+      `Kod: ${ABOUT.codeLicense}.`,
+      'Wszystkie dźwięki są syntezowane w przeglądarce, a mapy są autorskimi kompozycjami. Gra nie zawiera nagrań ani próbek dźwięku.',
+      'Serwer korzysta z biblioteki Zod (licencja MIT, Colin McDonnell).',
+    ),
+    section(
+      'Dane',
+      'Ranking przechowuje nick, wynik, mapę i czas zapisu, dopóki wynik mieści się w 1000 najlepszych na mapie.',
+      'Kody wyzwań przechowują tylko mapę i czas utworzenia.',
+      'W przeglądarce zapisywane są: kalibracja, najlepsze wyniki, ostatni nick i niewysłany wynik.',
+      'Gra nie zapisuje adresów IP, nie używa analityki ani ciasteczek śledzących.',
+    ),
+    button('Wróć', onBack, true),
   );
 }
 

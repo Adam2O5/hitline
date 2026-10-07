@@ -270,7 +270,7 @@ Sekcja nie jest poradą prawną. Przed publikacją sprawdź, czy potrzebna jest 
 
 ## 8. Budżet limitów darmowego planu
 
-Wartości zweryfikowane 2026-10-06; sprawdź aktualne w dokumentacji Cloudflare przed wdrożeniem.
+Wartości zweryfikowane 2026-10-06 (Workers) i 2026-10-07 (D1, wraz z pomiarem `rows_written`). Następny przegląd do 2027-01-07 (`09`, pkt 3).
 
 | Zasób | Limit darmowy | Konsekwencja dla projektu |
 |---|---|---|
@@ -279,7 +279,7 @@ Wartości zweryfikowane 2026-10-06; sprawdź aktualne w dokumentacji Cloudflare 
 | Czas CPU | 10 ms na wywołanie | proste zapytania mieszczą się; oczekiwanie na D1 nie liczy się jako CPU |
 | Żądania do statyków | bez limitu i opłat | audio i JS nie obciążają budżetu żądań API |
 | D1 odczyt wierszy | 5 mln / dzień | zapytanie rankingu z indeksem czyta rzędu 50 wierszy; retencja to do kilku tysięcy wierszy na mapę dziennie |
-| D1 zapis wierszy | 100 000 / dzień | zapis wyniku to 2 zapisane wiersze (tabela i indeks), więc rzędu 50 000 wyników / dzień. Z `AUTOINCREMENT` było to 3 wiersze (pomiar na produkcji 2026-10-07), stąd migracja `0002` |
+| D1 zapis wierszy | 100 000 / dzień | zapis wyniku to 2 zapisane wiersze (tabela i indeks), więc rzędu 50 000 wyników / dzień. Pomiar na produkcji 2026-10-07: 3 wiersze z `AUTOINCREMENT`, 2 po migracji `0002` |
 | D1 miejsce | 5 GB | dużo więcej, niż potrzebuje tabela wyników |
 
 Szacunek przykładowy: jedna sesja gry to 1 żądanie `POST /api/scores` i 1-2 żądania `GET /api/leaderboard`. Przy takiej proporcji limit 100 000 żądań dziennie to rząd kilkudziesięciu tysięcy sesji dziennie. Cache rankingu po stronie przeglądarki (`max-age`) zmniejsza liczbę żądań.

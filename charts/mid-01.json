@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "mid-01",
+  "title": "Nocna linia",
+  "bpm": 104,
+  "lengthBeats": 8,
+  "loops": 2,
+  "leadInBeats": 4,
+  "ambient": [
+    { "b": 3.5, "i": "openhat" },
+    { "b": 7.5, "i": "openhat" }
+  ],
+  "rounds": [
+    { "play": [
+      { "b": 0, "i": "kick808" }, { "b": 1.5, "i": "kick808" }, { "b": 3, "i": "kick808" },
+      { "b": 4, "i": "kick808" }, { "b": 5.5, "i": "kick808" }, { "b": 7, "i": "kick808" }
+    ] },
+    { "play": [
+      { "b": 2, "i": "snare" }, { "b": 6, "i": "snare" }, { "b": 7.5, "i": "snare" }
+    ] },
+    { "play": [
+      { "b": 0, "i": "hat" }, { "b": 0.5, "i": "hat" }, { "b": 1, "i": "hat" }, { "b": 1.5, "i": "hat" },
+      { "b": 2, "i": "hat" }, { "b": 2.5, "i": "hat" }, { "b": 3, "i": "hat" },
+      { "b": 4, "i": "hat" }, { "b": 4.5, "i": "hat" }, { "b": 5, "i": "hat" }, { "b": 5.5, "i": "hat" },
+      { "b": 6, "i": "hat" }, { "b": 6.5, "i": "hat" }, { "b": 7, "i": "hat" }
+    ] },
+    { "play": [
+      { "b": 0, "i": "bass808", "p": 38 }, { "b": 0.75, "i": "bass808", "p": 38 },
+      { "b": 3, "i": "bass808", "p": 41 }, { "b": 4, "i": "bass808", "p": 36 },
+      { "b": 4.75, "i": "bass808", "p": 36 }, { "b": 7, "i": "bass808", "p": 43 }
+    ] },
+    { "play": [
+      { "b": 0, "i": "string", "p": 62 }, { "b": 2, "i": "string", "p": 65 },
+      { "b": 4, "i": "string", "p": 60 }, { "b": 6, "i": "string", "p": 64 }
+    ] }
+  ]
+}

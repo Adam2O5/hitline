@@ -2,23 +2,23 @@
 
 ## 1. Rejestr ryzyk
 
-| ID | Ryzyko | Prawdopodobieństwo | Wpływ | Działanie |
-|---|---|---|---|---|
-| R-01 | Duże opóźnienie wyjścia audio (np. Bluetooth) psuje odczucie rozgrywki | wysokie | wysoki | kalibracja, komunikat o zalecanym sprzęcie, pomiary w `08-testing.md` |
-| R-02 | Przeglądarka blokuje audio do czasu gestu | pewne | średni | ekran startowy z gestem, `resume()` |
-| R-03 | Wyczerpanie dziennego limitu żądań Workera (100 000/dzień) lub zapisów D1 | niskie na starcie | średni | cache rankingu, limiter zapisów, monitorowanie, plan wyjścia (patrz niżej) |
-| R-04 | Zachowanie D1 po przekroczeniu limitów darmowych | zweryfikowane 2026-10-07 | niski | w planie Free zapytania kończą się błędem do 00:00 UTC, bez opłat; Worker zwraca `503`, klient zachowuje wynik lokalnie; nie podpinać metody płatności, bo plan Paid nalicza opłaty za nadwyżkę |
-| R-05 | Fałszowanie wyników w rankingu | wysokie przy popularności | niski do średni | poziomy walidacji (`06-backend-and-data.md`, ADR-007) |
-| R-06 | Naruszenie praw autorskich przez treści muzyczne | zależy od treści | wysoki | własne beaty i synteza, rejestr licencji (`05-audio-assets.md`, ADR-005) |
-| R-07 | Zmiana limitów lub warunków darmowych planów | średnie | średni | przegląd limitów co kwartał, abstrakcja warstwy danych |
-| R-08 | Różnice zachowania Web Audio między przeglądarkami | średnie | średni | macierz testów, metoda zapasowa w `clock.ts`, metoda zapisana z kalibracją (ADR-010) |
-| R-09 | Zbyt duży rozrzut kalibracji u graczy (niespójne stukanie) | średnie | niski | próg rozrzutu, ponowna kalibracja, mediana |
-| R-10 | Karta w tle zaburza scheduler | wysokie | niski | pauza przy `visibilitychange`, wznowienie z odliczaniem |
-| R-11 | Wyciek tokenów wdrożeniowych | niskie | wysoki | minimalne uprawnienia tokenu, sekrety w CI, brak sekretów w repozytorium |
-| R-12 | Rate Limiting w Workers niedostępny w darmowym planie lub o innej składni | zweryfikowane 2026-10-07 | niski | składnia `[[ratelimits]]` z `namespace_id` i `[ratelimits.simple]` (okres tylko 10 lub 60 s), działa w `wrangler dev`; dokumentacja nie wymienia ograniczeń planu. Do potwierdzenia po pierwszym wdrożeniu. Dokumentacja odradza klucz z IP (wspólne adresy w sieciach komórkowych); przy fałszywych `429` podnieść limit |
-| R-13 | Obraźliwe nicki w publicznym rankingu | wysokie przy popularności | średni | lista zakazanych słów, procedura ręcznego usuwania (`06-backend-and-data.md`, pkt 5) |
-| R-14 | Fałszywe odrzucenia niewinnych nicków przez listę zakazanych słów | średnie | niski | porównanie krótkich słów tylko z całym nickiem, czytelny komunikat, korekta listy |
-| R-15 | Mashowanie (klikanie na oślep) przy jednym przycisku | wysokie | średni | kara za puste kliknięcie (`01-requirements.md`, pkt 4); strojenie wartości kary po testach |
+| ID | Ryzyko | Prawdopodobieństwo | Wpływ | Działanie | Status (2026-10-07) |
+|---|---|---|---|---|---|
+| R-01 | Duże opóźnienie wyjścia audio (np. Bluetooth) psuje odczucie rozgrywki | wysokie | wysoki | kalibracja, komunikat o zalecanym sprzęcie, pomiary w `08-testing.md` | ograniczone w kodzie (kalibracja, komunikat); otwarte: pomiary na min. 3 konfiguracjach (autor) |
+| R-02 | Przeglądarka blokuje audio do czasu gestu | pewne | średni | ekran startowy z gestem, `resume()` | zamknięte: wdrożone (`audio/context.ts`, ekran startowy) |
+| R-03 | Wyczerpanie dziennego limitu żądań Workera (100 000/dzień) lub zapisów D1 | niskie na starcie | średni | cache rankingu, limiter zapisów, monitorowanie, plan wyjścia (patrz niżej) | ograniczone: cache 30 s, 2 zapisane wiersze na wynik (pomiar), `503` i ponowienie po stronie klienta; monitorowanie w panelu po pierwszym tygodniu ruchu |
+| R-04 | Zachowanie D1 po przekroczeniu limitów darmowych | zweryfikowane | niski | w planie Free zapytania kończą się błędem do 00:00 UTC, bez opłat; Worker zwraca `503`, klient zachowuje wynik lokalnie; nie podpinać metody płatności, bo plan Paid nalicza opłaty za nadwyżkę | zamknięte: zweryfikowane w dokumentacji |
+| R-05 | Fałszowanie wyników w rankingu | wysokie przy popularności | niski do średni | poziomy walidacji (`06-backend-and-data.md`, ADR-007) | ograniczone: poziom 2 wdrożony; poziom 3 w backlogu |
+| R-06 | Naruszenie praw autorskich przez treści muzyczne | zależy od treści | wysoki | własne beaty i synteza, rejestr licencji (`05-audio-assets.md`, ADR-005) | ograniczone: tylko synteza i autorskie mapy, `CREDITS.md`, pusty rejestr zasobów; każda nowa mapa lub próbka wymaga wpisu |
+| R-07 | Zmiana limitów lub warunków darmowych planów | średnie | średni | przegląd limitów co kwartał, abstrakcja warstwy danych | otwarte, cykliczne: ostatni przegląd 2026-10-07, następny do 2027-01-07 |
+| R-08 | Różnice zachowania Web Audio między przeglądarkami | średnie | średni | macierz testów, metoda zapasowa w `clock.ts`, metoda zapisana z kalibracją (ADR-010) | ograniczone w kodzie; otwarte: macierz w `08`, pkt 4 (autor) |
+| R-09 | Zbyt duży rozrzut kalibracji u graczy (niespójne stukanie) | średnie | niski | próg rozrzutu, ponowna kalibracja, mediana | ograniczone w kodzie; próg 40 ms do sprawdzenia w testach z graczami |
+| R-10 | Karta w tle zaburza scheduler | wysokie | niski | pauza przy `visibilitychange`, wznowienie z odliczaniem | ograniczone w kodzie; otwarte: kolumna „Pauza i wznowienie” w macierzy (autor) |
+| R-11 | Wyciek tokenów wdrożeniowych | niskie | wysoki | minimalne uprawnienia tokenu, sekrety w CI, brak sekretów w repozytorium | ograniczone: wdrożenie ręczne przez `wrangler login`, brak tokenów w repozytorium i CI |
+| R-12 | Rate Limiting w Workers niedostępny w darmowym planie lub o innej składni | niepewne | średni | składnia `[[ratelimits]]` z `namespace_id` i `[ratelimits.simple]` (okres tylko 10 lub 60 s); działa w `wrangler dev`. Dokumentacja odradza klucz z IP (wspólne adresy w sieciach komórkowych); przy fałszywych `429` podnieść limit | otwarte: na produkcji 15 szybkich żądań nie dało `429` (licznik jest ostatecznie spójny); do powtórzenia wolniejszy test (25 żądań co 1 s). Bez limitera zapisy chronią tylko walidacja i budżet D1 (R-03) |
+| R-13 | Obraźliwe nicki w publicznym rankingu | wysokie przy popularności | średni | lista zakazanych słów, procedura ręcznego usuwania (`06-backend-and-data.md`, pkt 5) | ograniczone: `worker/blocklist.ts` z testami; lista do uzupełniania |
+| R-14 | Fałszywe odrzucenia niewinnych nicków przez listę zakazanych słów | średnie | niski | porównanie krótkich słów tylko z całym nickiem, czytelny komunikat, korekta listy | ograniczone: wdrożone i przetestowane |
+| R-15 | Mashowanie (klikanie na oślep) przy jednym przycisku | wysokie | średni | kara za puste kliknięcie (`01-requirements.md`, pkt 4); strojenie wartości kary po testach | ograniczone: kara 10 pkt; otwarte: wartość do decyzji po testach z graczami (ADR-011) |
 
 Plan wyjścia dla R-03 i R-07: logika danych jest ukryta za cienkim interfejsem (`net/api.ts` po stronie klienta, funkcje dostępu do danych po stronie Workera), więc zamiana bazy lub platformy dotyka niewielkiej części kodu.
 

@@ -15,8 +15,9 @@ import { el, screen } from './ui/dom.ts';
 import { Renderer } from './render/canvas.ts';
 import { showCalibration, type CalibrationReason } from './ui/calibration.ts';
 import { startDebugOverlay } from './ui/debug.ts';
+import { startTuningPanel } from './ui/tuning.ts';
 import {
-  showLeaderboard, showMapCard, showMapResults, showMenu, showPause, showRound, showRoundResults, showStart,
+  showAbout, showLeaderboard, showMapCard, showMapResults, showMenu, showPause, showRound, showRoundResults, showStart,
 } from './ui/screens.ts';
 
 const root = document.querySelector<HTMLDivElement>('#app')!;
@@ -40,7 +41,10 @@ showStart(root, async () => {
   app.ctx = ctx;
   initSynth(ctx);
   app.method = await detectClockMethod(ctx);
-  if (debug) startDebugOverlay(ctx, () => app);
+  if (debug) {
+    startDebugOverlay(ctx, () => app);
+    startTuningPanel(ctx);
+  }
   const cal = loadCalibration(app.method);
   if (cal.status === 'ok') {
     app.offset = cal.offset;
@@ -69,6 +73,7 @@ function menu(notice = ''): void {
     onPick: mapCard,
     onCalibrate: () => calibrate('manual'),
     onRanking: () => ranking(Object.values(charts)[0], () => menu()),
+    onAbout: () => showAbout(root, () => menu()),
   }, notice);
 }
 
@@ -100,7 +105,7 @@ function ranking(selected: Chart | undefined, onBack: () => void): void {
 
 function play(chart: Chart): void {
   const { area, canvas, pauseButton } = showRound(root);
-  const renderer = new Renderer(canvas);
+  const renderer = new Renderer(canvas, chart);
   const controller = new GameController(app.ctx!, chart, app.method, app.offset, area, renderer, {
     onPause: () =>
       showPause(area, {
