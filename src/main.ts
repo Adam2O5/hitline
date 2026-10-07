@@ -7,11 +7,12 @@ import type { Chart } from './engine/chart.ts';
 import { detectClockMethod, type ClockMethod } from './engine/clock.ts';
 import { GameController } from './game/controller.ts';
 import { loadBest, saveBest } from './game/progress.ts';
+import { buildScorePayload, getLeaderboard, loadPlayer, postScore, retryPending, savePlayer } from './net/api.ts';
 import { Renderer } from './render/canvas.ts';
 import { showCalibration, type CalibrationReason } from './ui/calibration.ts';
 import { startDebugOverlay } from './ui/debug.ts';
 import {
-  showMapCard, showMapResults, showMenu, showPause, showRound, showRoundResults, showStart,
+  showLeaderboard, showMapCard, showMapResults, showMenu, showPause, showRound, showRoundResults, showStart,
 } from './ui/screens.ts';
 
 const root = document.querySelector<HTMLDivElement>('#app')!;
@@ -46,14 +47,24 @@ function calibrate(reason: CalibrationReason): void {
 }
 
 function menu(): void {
+  void retryPending();
   showMenu(root, Object.values(charts), id => loadBest(id), {
     onPick: mapCard,
     onCalibrate: () => calibrate('manual'),
+    onRanking: () => ranking(Object.values(charts)[0], menu),
   });
 }
 
 function mapCard(chart: Chart): void {
-  showMapCard(root, chart, loadBest(chart.id), { onPlay: () => play(chart), onBack: menu });
+  showMapCard(root, chart, loadBest(chart.id), getLeaderboard(chart.id), {
+    onPlay: () => play(chart),
+    onBack: menu,
+  });
+}
+
+function ranking(selected: Chart | undefined, onBack: () => void): void {
+  if (!selected) return;
+  showLeaderboard(root, Object.values(charts), selected, getLeaderboard, onBack);
 }
 
 function play(chart: Chart): void {
@@ -77,7 +88,21 @@ function play(chart: Chart): void {
       controller.detach();
       renderer.dispose();
       const newBest = saveBest(chart.id, s.score);
-      showMapResults(root, chart, s, newBest, { onRetry: () => mapCard(chart), onMenu: menu });
+      let sent = false;
+      const showResults = () =>
+        showMapResults(root, chart, s, newBest, loadPlayer(), {
+          onSend: async player => {
+            if (sent) return 'ok';
+            savePlayer(player);
+            const r = await postScore(buildScorePayload(chart, s, player));
+            sent = r === 'ok';
+            return r;
+          },
+          onRetry: () => mapCard(chart),
+          onRanking: () => ranking(chart, showResults),
+          onMenu: menu,
+        });
+      showResults();
     },
   });
   pauseButton.addEventListener('click', () => {

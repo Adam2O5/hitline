@@ -30,13 +30,16 @@ migrations_dir = "migrations"
 [[ratelimits]]
 name = "WRITE_LIMITER"
 namespace_id = "1001"
-simple = { limit = 10, period = 60 }
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60
 
 [triggers]
 crons = ["0 3 * * *"]
 ```
 
-Szczegóły składni `[assets]`, `[[ratelimits]]` i kolejności obsługi żądań zmieniają się między wersjami Wranglera. Traktuj powyższy plik jako punkt wyjścia i zweryfikuj z bieżącą dokumentacją. Nazwy Workera i bazy D1 zapisuj małymi literami.
+Składnia `[assets]` (z tablicą `run_worker_first`) i `[[ratelimits]]` zweryfikowana z dokumentacją 2026-10-07 i sprawdzona w `wrangler dev` (Wrangler 4.148). `period` limitera może wynosić tylko 10 lub 60 s. Plik w repozytorium ma `database_id` z samymi zerami; lokalnie działa, przed wdrożeniem trzeba wpisać prawdziwy identyfikator. Nazwy Workera i bazy D1 zapisuj małymi literami.
 
 `run_worker_first = ["/api/*"]` kieruje żądania API zawsze do Workera, a pozostałe ścieżki najpierw do statyków. Format tablicy wzorców sprawdź w dokumentacji swojej wersji Wranglera; starsze wersje przyjmują tylko wartość logiczną. Nie włączaj `not_found_handling = "single-page-application"` bez sprawdzenia w `wrangler dev`, że żądania `/api/*` nadal trafiają do Workera. `namespace_id` limitera to dowolny identyfikator liczbowy unikalny w obrębie konta. Cron uruchamia codzienną retencję wyników (`06-backend-and-data.md`, pkt 7) o 03:00 UTC.
 

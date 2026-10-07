@@ -132,6 +132,6 @@ Wcześniejsza lista poprawek z tego planu została przeniesiona do dokumentów �
 |---|---|---|
 | ADR-006 (tło po chybieniu) | etap 5, po testach z graczami | wariant A |
 | ADR-011 (wysokość kary) | etap 5, po testach z graczami | 10 punktów |
-| Poziom walidacji | etap 3 | poziom 1, poziom 2 jeśli zostaje czas |
+| Poziom walidacji | etap 3 | rozstrzygnięte: poziom 2 (ADR-007) |
 | Osobne suwaki audio/wideo | po pomiarach w etapie 1 | jeden offset |
 | Framework UI poza grą | etap 2 | czysty TS |

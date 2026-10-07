@@ -6,7 +6,7 @@
 |---|---|---|
 | Jednostkowe | Vitest | ocena trafień, punktacja, kalibracja, parser map, konwersja beatów |
 | Walidacja zasobów | skrypt w CI | wszystkie mapy w `charts/` zgodne ze schematem |
-| API | Vitest + lokalny `wrangler dev` | walidacja żądań, odpowiedzi, kody błędów |
+| API | Vitest w Node: Worker wywoływany bezpośrednio, D1 jako atrapa na `node:sqlite` z migracją z `migrations/` (`worker/testing/d1.ts`), atrapa limitera; ręczny test dymny na `wrangler dev` | walidacja żądań, odpowiedzi, kody błędów, SQL rankingu i retencji |
 | Pomiar opóźnień | ręczny, procedura w pkt 3 | opóźnienie wejście -> dźwięk per urządzenie |
 | Ręczne / eksploracyjne | macierz urządzeń (pkt 4) | zachowanie w przeglądarkach |
 

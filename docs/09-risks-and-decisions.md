@@ -7,7 +7,7 @@
 | R-01 | Duże opóźnienie wyjścia audio (np. Bluetooth) psuje odczucie rozgrywki | wysokie | wysoki | kalibracja, komunikat o zalecanym sprzęcie, pomiary w `08-testing.md` |
 | R-02 | Przeglądarka blokuje audio do czasu gestu | pewne | średni | ekran startowy z gestem, `resume()` |
 | R-03 | Wyczerpanie dziennego limitu żądań Workera (100 000/dzień) lub zapisów D1 | niskie na starcie | średni | cache rankingu, limiter zapisów, monitorowanie, plan wyjścia (patrz niżej) |
-| R-04 | Niejasne zachowanie D1 po przekroczeniu limitów darmowych (dokumentacja FAQ wspomina o naliczaniu opłat) | niepewne | wysoki | zweryfikować w dokumentacji i panelu przed publikacją; nie podpinać metody płatności |
+| R-04 | Zachowanie D1 po przekroczeniu limitów darmowych | zweryfikowane 2026-10-07 | niski | w planie Free zapytania kończą się błędem do 00:00 UTC, bez opłat; Worker zwraca `503`, klient zachowuje wynik lokalnie; nie podpinać metody płatności, bo plan Paid nalicza opłaty za nadwyżkę |
 | R-05 | Fałszowanie wyników w rankingu | wysokie przy popularności | niski do średni | poziomy walidacji (`06-backend-and-data.md`, ADR-007) |
 | R-06 | Naruszenie praw autorskich przez treści muzyczne | zależy od treści | wysoki | własne beaty i synteza, rejestr licencji (`05-audio-assets.md`, ADR-005) |
 | R-07 | Zmiana limitów lub warunków darmowych planów | średnie | średni | przegląd limitów co kwartał, abstrakcja warstwy danych |
@@ -15,7 +15,7 @@
 | R-09 | Zbyt duży rozrzut kalibracji u graczy (niespójne stukanie) | średnie | niski | próg rozrzutu, ponowna kalibracja, mediana |
 | R-10 | Karta w tle zaburza scheduler | wysokie | niski | pauza przy `visibilitychange`, wznowienie z odliczaniem |
 | R-11 | Wyciek tokenów wdrożeniowych | niskie | wysoki | minimalne uprawnienia tokenu, sekrety w CI, brak sekretów w repozytorium |
-| R-12 | Rate Limiting w Workers niedostępny w darmowym planie lub o innej składni | niepewne | średni | zweryfikować przed etapem 3; bez limitera zapisy działają bez ograniczeń (R-03) |
+| R-12 | Rate Limiting w Workers niedostępny w darmowym planie lub o innej składni | zweryfikowane 2026-10-07 | niski | składnia `[[ratelimits]]` z `namespace_id` i `[ratelimits.simple]` (okres tylko 10 lub 60 s), działa w `wrangler dev`; dokumentacja nie wymienia ograniczeń planu. Do potwierdzenia po pierwszym wdrożeniu. Dokumentacja odradza klucz z IP (wspólne adresy w sieciach komórkowych); przy fałszywych `429` podnieść limit |
 | R-13 | Obraźliwe nicki w publicznym rankingu | wysokie przy popularności | średni | lista zakazanych słów, procedura ręcznego usuwania (`06-backend-and-data.md`, pkt 5) |
 | R-14 | Fałszywe odrzucenia niewinnych nicków przez listę zakazanych słów | średnie | niski | porównanie krótkich słów tylko z całym nickiem, czytelny komunikat, korekta listy |
 | R-15 | Mashowanie (klikanie na oślep) przy jednym przycisku | wysokie | średni | kara za puste kliknięcie (`01-requirements.md`, pkt 4); strojenie wartości kary po testach |
@@ -73,7 +73,7 @@ Plan wyjścia dla R-03 i R-07: logika danych jest ukryta za cienkim interfejsem 
 
 ### ADR-007: Poziom ochrony rankingu
 
-- **Status:** przyjęta dla wersji 1: poziom 1 (walidacja formalna, lista zakazanych nicków, limiter zapisów). Poziom 2 (odtworzenie wyniku z `hits` i `emptyTaps`) planowany w etapie 3.
+- **Status:** przyjęta dla wersji 1: poziomy 1 i 2 (walidacja formalna, lista zakazanych nicków, limiter zapisów, odtworzenie wyniku z `hits` i `emptyTaps`, wymaganych w każdym zapisie). Wdrożone w etapie 3 (`worker/scores.ts`).
 - **Kontekst:** ranking publiczny bez kont jest podatny na fałszerstwa.
 - **Konsekwencje:** wyniki w wersji 1 mają niski poziom zaufania; nie wiąż z rankingiem nagród ani wartości materialnych.
 

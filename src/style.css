@@ -90,6 +90,45 @@ button.secondary {
   gap: 12px;
 }
 
+.ranking-box {
+  min-width: 240px;
+}
+
+.ranking {
+  margin: 0;
+  padding-left: 2em;
+  text-align: left;
+  line-height: 1.6;
+}
+
+.ranking li span:last-child {
+  float: right;
+  margin-left: 24px;
+}
+
+.score-form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 32rem;
+}
+
+.score-form input,
+select {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #222;
+  color: #eee;
+}
+
+.score-form p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
 .hint {
   max-width: 32rem;
   color: #999;

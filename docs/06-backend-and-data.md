@@ -41,6 +41,8 @@ Uwagi:
 | `POST /api/challenges` | utworzenie kodu wyzwania dla mapy | `201` `{ "code": "ABC234" }` lub `400`/`404`/`429` |
 | `GET /api/challenges/:code` | odczyt mapy dla kodu | `200` `{ "chart": "demo-01" }` lub `404` |
 
+Błąd `400` ma treść `{ "error": "invalid-name" }` dla niepoprawnego lub zakazanego nicka, a `{ "error": "invalid" }` albo `{ "error": "bad request" }` dla pozostałych przypadków. Błąd bazy lub inny nieoczekiwany wyjątek daje `503` `{ "error": "unavailable" }`, żeby klient odróżnił awarię (wynik zachowany do ponowienia) od odrzucenia.
+
 ### Treść `POST /api/scores`
 
 ```json
@@ -84,6 +86,8 @@ Wynik pochodzi z klienta, więc nigdy nie jest w pełni zaufany. Wdrażaj poziom
 Decyzja o poziomie wdrożenia: `09-risks-and-decisions.md`, ADR-007.
 
 ## 4. Szkielet Workera
+
+Implementacja: `worker/index.ts` (routing, limiter, odczyt ciała, cron), `worker/scores.ts` (poziomy 1 i 2), `worker/blocklist.ts`. Różnice względem szkicu poniżej: nick bez spacji na brzegach; `hits` i `emptyTaps` wymagane (poziom 2); mapy walidowane przy starcie Workera (ADR-016); błąd bazy daje `503`, nie `400`; kod wyzwania ponawiany do 3 razy przy kolizji; `GET /api/challenges/:code` zwraca `404` także dla mapy usuniętej z buildu.
 
 ```ts
 // worker/index.ts
@@ -254,7 +258,7 @@ Przechowywane dane:
 |---|---|---|---|
 | nick, wynik, mapa, czas zapisu | D1, `scores` | ranking | do wypadnięcia z top 1000 mapy |
 | kod wyzwania, mapa, czas utworzenia | D1, `challenges` | kody wyzwań | bezterminowo; brak danych osobowych |
-| offset kalibracji, metoda zegara, ostatni niewysłany wynik | `localStorage` przeglądarki | działanie gry | do wyczyszczenia przez użytkownika |
+| offset kalibracji, metoda zegara, ostatni niewysłany wynik, ostatni nick, najlepsze wyniki lokalne | `localStorage` przeglądarki (`hitline.*`) | działanie gry | do wyczyszczenia przez użytkownika |
 
 - Aplikacja nie zapisuje adresów IP. Adres IP jest używany wyłącznie jako klucz limitera w pamięci Cloudflare (pkt 6).
 - Nick jest publiczny; formularz wysyłki wyniku informuje o tym i odradza podawanie imienia i nazwiska.
@@ -284,4 +288,4 @@ Zachowanie po przekroczeniu limitów D1 wymaga weryfikacji (patrz `09-risks-and-
 
 ## 9. Odporność na awarię
 
-Klient traktuje każdą odpowiedź inną niż 2xx jako niedostępność rankingu: wyświetla komunikat, nie blokuje gry i przechowuje ostatni wynik lokalnie, by można było spróbować wysłać go ponownie. Odpowiedzi `400` (np. zakazany nick) i `429` mają własne komunikaty; przy `400` wynik nie jest ponawiany automatycznie.
+Klient (`src/net/api.ts`) traktuje brak sieci, przekroczenie czasu (8 s) i odpowiedzi inne niż `201`, `400` i `429` jako niedostępność rankingu: wyświetla komunikat, nie blokuje gry i przechowuje ostatni wynik w `hitline.pending`. Przy `429` wynik też jest zachowywany. Zachowany wynik jest ponawiany przy każdym wejściu do menu oraz przyciskiem „Spróbuj ponownie”. Przy `400` wynik nie jest ponawiany: `invalid-name` pozwala poprawić nick, a inne odrzucenie kończy próbę.
