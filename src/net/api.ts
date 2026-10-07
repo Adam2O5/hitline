@@ -38,6 +38,39 @@ export async function getLeaderboard(chartId: string): Promise<LeaderboardRow[] 
   }
 }
 
+export type CreateChallengeResult = { ok: true; code: string } | { ok: false; reason: 'rate-limited' | 'unavailable' };
+export type ChallengeLookup = { ok: true; chartId: string } | { ok: false; reason: 'not-found' | 'unavailable' };
+
+const CODE_RE = /^[A-Z0-9]{6}$/;
+
+export function parseChallengeCode(raw: string | null): string | null {
+  const code = raw?.trim().toUpperCase() ?? '';
+  return code ? code : null;
+}
+
+export async function createChallenge(chartId: string): Promise<CreateChallengeResult> {
+  const r = await request('/api/challenges', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ chart: chartId }),
+  });
+  if (r?.status === 429) return { ok: false, reason: 'rate-limited' };
+  if (r?.status !== 201) return { ok: false, reason: 'unavailable' };
+  const body = (await r.json().catch(() => null)) as { code?: unknown } | null;
+  return typeof body?.code === 'string' && CODE_RE.test(body.code)
+    ? { ok: true, code: body.code }
+    : { ok: false, reason: 'unavailable' };
+}
+
+export async function getChallenge(code: string): Promise<ChallengeLookup> {
+  if (!CODE_RE.test(code)) return { ok: false, reason: 'not-found' };
+  const r = await request(`/api/challenges/${code}`);
+  if (r?.status === 404) return { ok: false, reason: 'not-found' };
+  if (!r?.ok) return { ok: false, reason: 'unavailable' };
+  const body = (await r.json().catch(() => null)) as { chart?: unknown } | null;
+  return typeof body?.chart === 'string' ? { ok: true, chartId: body.chart } : { ok: false, reason: 'unavailable' };
+}
+
 export async function postScore(payload: ScorePayload, storage: Storage = localStorage): Promise<SendResult> {
   const r = await request('/api/scores', {
     method: 'POST',

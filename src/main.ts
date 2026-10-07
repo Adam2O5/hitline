@@ -7,7 +7,11 @@ import type { Chart } from './engine/chart.ts';
 import { detectClockMethod, type ClockMethod } from './engine/clock.ts';
 import { GameController } from './game/controller.ts';
 import { loadBest, saveBest } from './game/progress.ts';
-import { buildScorePayload, getLeaderboard, loadPlayer, postScore, retryPending, savePlayer } from './net/api.ts';
+import {
+  buildScorePayload, createChallenge, getChallenge, getLeaderboard, loadPlayer, parseChallengeCode, postScore,
+  retryPending, savePlayer,
+} from './net/api.ts';
+import { el, screen } from './ui/dom.ts';
 import { Renderer } from './render/canvas.ts';
 import { showCalibration, type CalibrationReason } from './ui/calibration.ts';
 import { startDebugOverlay } from './ui/debug.ts';
@@ -16,7 +20,14 @@ import {
 } from './ui/screens.ts';
 
 const root = document.querySelector<HTMLDivElement>('#app')!;
-const debug = new URLSearchParams(location.search).has('debug');
+const params = new URLSearchParams(location.search);
+const debug = params.has('debug');
+let challengeCode = parseChallengeCode(params.get('c'));
+if (challengeCode) {
+  params.delete('c');
+  const qs = params.toString();
+  history.replaceState(null, '', `${location.pathname}${qs ? `?${qs}` : ''}${location.hash}`);
+}
 
 const app: { ctx: AudioContext | null; method: ClockMethod; offset: number } = {
   ctx: null,
@@ -46,19 +57,39 @@ function calibrate(reason: CalibrationReason): void {
   });
 }
 
-function menu(): void {
+function menu(notice = ''): void {
   void retryPending();
+  if (challengeCode) {
+    const code = challengeCode;
+    challengeCode = null;
+    void openChallenge(code);
+    return;
+  }
   showMenu(root, Object.values(charts), id => loadBest(id), {
     onPick: mapCard,
     onCalibrate: () => calibrate('manual'),
-    onRanking: () => ranking(Object.values(charts)[0], menu),
-  });
+    onRanking: () => ranking(Object.values(charts)[0], () => menu()),
+  }, notice);
+}
+
+async function openChallenge(code: string): Promise<void> {
+  screen(root, el('p', 'hint', 'Wczytywanie wyzwania…'));
+  const r = await getChallenge(code);
+  const chart = r.ok && Object.hasOwn(charts, r.chartId) ? charts[r.chartId] : undefined;
+  if (chart) {
+    mapCard(chart);
+    return;
+  }
+  menu(!r.ok && r.reason === 'unavailable'
+    ? 'Nie udało się wczytać wyzwania. Spróbuj później.'
+    : 'Nie znaleziono wyzwania.');
 }
 
 function mapCard(chart: Chart): void {
   showMapCard(root, chart, loadBest(chart.id), getLeaderboard(chart.id), {
     onPlay: () => play(chart),
-    onBack: menu,
+    onBack: () => menu(),
+    onChallenge: () => createChallenge(chart.id),
   });
 }
 

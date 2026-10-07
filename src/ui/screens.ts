@@ -1,7 +1,7 @@
 import { roundDuration, type Chart } from '../engine/chart.ts';
 import type { SessionState } from '../engine/session.ts';
 import type { Grade, InstrumentId } from '../engine/types.ts';
-import type { LeaderboardRow, SendResult } from '../net/api.ts';
+import type { CreateChallengeResult, LeaderboardRow, SendResult } from '../net/api.ts';
 import { button, el, overlay, screen } from './dom.ts';
 
 const INSTRUMENT_NAMES: Record<InstrumentId, string> = {
@@ -31,6 +31,7 @@ export function showMenu(
   charts: Chart[],
   best: (chartId: string) => number | null,
   actions: { onPick: (chart: Chart) => void; onCalibrate: () => void; onRanking: () => void },
+  notice = '',
 ): void {
   const list = el('div', 'menu-list');
   for (const c of charts) {
@@ -38,9 +39,13 @@ export function showMenu(
     list.append(button(`${c.title} · ${c.bpm} BPM${b !== null ? ` · rekord ${b}` : ''}`, () => actions.onPick(c)));
   }
   if (!charts.length) list.append(el('p', 'warn', 'Brak dostępnych map.'));
+  const status = el('p', 'warn', notice);
+  status.setAttribute('role', 'status');
+  status.hidden = !notice;
   screen(
     root,
     el('h1', '', 'Hitline'),
+    status,
     list,
     button('Ranking', actions.onRanking, true),
     button('Kalibracja', actions.onCalibrate, true),
@@ -70,7 +75,7 @@ export function showMapCard(
   chart: Chart,
   best: number | null,
   top: Promise<LeaderboardRow[] | null>,
-  actions: { onPlay: () => void; onBack: () => void },
+  actions: { onPlay: () => void; onBack: () => void; onChallenge: () => Promise<CreateChallengeResult> },
 ): void {
   const box = el('div', 'ranking-box');
   fillRanking(box, top.then(r => r && r.slice(0, 3)));
@@ -81,8 +86,45 @@ export function showMapCard(
     el('p', 'hint', best !== null ? `Twój rekord: ${best}` : 'Jeszcze nie grałeś tej mapy.'),
     box,
     button('Graj', actions.onPlay),
+    challengeBlock(actions.onChallenge),
     button('Wróć', actions.onBack, true),
   );
+}
+
+export const challengeLink = (code: string) => `${location.origin}${location.pathname}?c=${code}`;
+
+function challengeBlock(create: () => Promise<CreateChallengeResult>): HTMLElement {
+  const block = el('div', 'challenge');
+  const status = el('p', 'hint');
+  status.setAttribute('role', 'status');
+  const trigger = button('Wyzwij znajomego', async () => {
+    trigger.disabled = true;
+    const r = await create();
+    trigger.disabled = false;
+    if (!r.ok) {
+      status.className = 'warn';
+      status.textContent = r.reason === 'rate-limited'
+        ? 'Za dużo prób. Spróbuj za minutę.'
+        : 'Nie udało się utworzyć wyzwania. Spróbuj ponownie.';
+      return;
+    }
+    const link = challengeLink(r.code);
+    status.className = 'hint';
+    try {
+      await navigator.clipboard.writeText(link);
+      status.textContent = `Link skopiowany do schowka (kod ${r.code}).`;
+    } catch {
+      const input = el('input', 'challenge-link');
+      input.readOnly = true;
+      input.value = link;
+      input.setAttribute('aria-label', 'Link do wyzwania');
+      input.addEventListener('focus', () => input.select());
+      status.replaceChildren('Skopiuj link i wyślij znajomemu:', input);
+      input.focus();
+    }
+  }, true);
+  block.append(trigger, status);
+  return block;
 }
 
 export function showLeaderboard(
