@@ -6,11 +6,11 @@ Gra działa bez backendu. Awaria API wyłącza tylko ranking i kody wyzwań (NFR
 
 ## 1. Schemat bazy
 
-Plik `migrations/0001_init.sql`:
+Stan po migracjach `migrations/0001_init.sql` i `0002_scores_without_autoincrement.sql`:
 
 ```sql
 CREATE TABLE scores (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  id         INTEGER PRIMARY KEY,               -- bez AUTOINCREMENT: brak zapisu do sqlite_sequence
   chart_id   TEXT    NOT NULL,
   player     TEXT    NOT NULL,
   score      INTEGER NOT NULL CHECK (score >= 0),
@@ -28,7 +28,7 @@ CREATE TABLE challenges (
 
 Uwagi:
 
-- Indeks `(chart_id, score DESC)` obsługuje zapytanie rankingu bez skanowania tabeli. Przy równych wynikach wyżej jest wynik zapisany wcześniej (`id ASC`).
+- Indeks `(chart_id, score DESC)` obsługuje zapytanie rankingu bez skanowania tabeli. Przy równych wynikach wyżej jest wynik zapisany wcześniej (`id ASC`). Bez `AUTOINCREMENT` nowe `id` to `max(id) + 1`; po usunięciu wiersza z największym `id` numer może zostać użyty ponownie, ale nadal jest większy od wszystkich istniejących, więc kolejność remisów się nie zmienia.
 - Klucz główny tekstowy (`code`) w zwykłej tabeli SQLite tworzy dodatkowy indeks, więc zapis może liczyć się jako więcej niż jeden zapisany wiersz. Rzeczywiste liczby zawsze odczytuj z `meta.rows_written` zwracanego przez każde zapytanie D1.
 - Ranking nie grupuje wyników per gracz: ten sam nick może zajmować wiele miejsc (FR-10).
 
@@ -279,7 +279,7 @@ Wartości zweryfikowane 2026-10-06; sprawdź aktualne w dokumentacji Cloudflare 
 | Czas CPU | 10 ms na wywołanie | proste zapytania mieszczą się; oczekiwanie na D1 nie liczy się jako CPU |
 | Żądania do statyków | bez limitu i opłat | audio i JS nie obciążają budżetu żądań API |
 | D1 odczyt wierszy | 5 mln / dzień | zapytanie rankingu z indeksem czyta rzędu 50 wierszy; retencja to do kilku tysięcy wierszy na mapę dziennie |
-| D1 zapis wierszy | 100 000 / dzień | zapis wyniku z jednym indeksem to około 2 zapisane wiersze, więc rzędu 50 000 wyników / dzień |
+| D1 zapis wierszy | 100 000 / dzień | zapis wyniku to 2 zapisane wiersze (tabela i indeks), więc rzędu 50 000 wyników / dzień. Z `AUTOINCREMENT` było to 3 wiersze (pomiar na produkcji 2026-10-07), stąd migracja `0002` |
 | D1 miejsce | 5 GB | dużo więcej, niż potrzebuje tabela wyników |
 
 Szacunek przykładowy: jedna sesja gry to 1 żądanie `POST /api/scores` i 1-2 żądania `GET /api/leaderboard`. Przy takiej proporcji limit 100 000 żądań dziennie to rząd kilkudziesięciu tysięcy sesji dziennie. Cache rankingu po stronie przeglądarki (`max-age`) zmniejsza liczbę żądań.
