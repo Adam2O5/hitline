@@ -15,9 +15,18 @@ export function button(text: string, onClick: () => void, secondary = false): HT
   return b;
 }
 
+let overlayId = 0;
+
 export function overlay(parent: HTMLElement, ...children: HTMLElement[]): HTMLDivElement {
   const o = el('div', 'overlay');
   o.append(...children);
+  o.setAttribute('role', 'dialog');
+  o.setAttribute('aria-modal', 'true');
+  const title = o.querySelector('h2');
+  if (title) {
+    title.id = `overlay-title-${++overlayId}`;
+    o.setAttribute('aria-labelledby', title.id);
+  }
   o.addEventListener('pointerdown', e => e.stopPropagation());
   parent.append(o);
   o.querySelector('button')?.focus();

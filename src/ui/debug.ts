@@ -1,4 +1,5 @@
 import type { ClockMethod } from '../engine/clock.ts';
+import { drawStats } from '../render/stats.ts';
 import { el } from './dom.ts';
 
 const REFRESH_MS = 500;
@@ -24,6 +25,7 @@ export function startDebugOverlay(
         `zegar:         ${method}`,
         `offset:        ${ms(offset)}`,
         `FPS:           ${Math.round((frames * 1000) / (t - last))}`,
+        `draw (JS):     ${drawStats.avg.toFixed(2)} ms, maks. ${drawStats.max.toFixed(2)} ms`,
       ].join('\n');
       frames = 0;
       last = t;

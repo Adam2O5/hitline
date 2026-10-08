@@ -25,6 +25,7 @@ Dokumentacja opisuje stan zaplanowany. Limity darmowych planów Cloudflare zosta
 | `docs/11-ux.md` | ekrany, przejścia między nimi, komunikaty |
 | `docs/12-implementation-plan.md` | plan implementacji etapami, kolejność modułów i ryzyk |
 | `docs/13-class-diagram.md` | model danych, moduły i klasy, mapowanie na pliki |
+| `docs/14-visual-style.md` | styl wizualny: paleta, typografia, układ canvasu, efekty, dostępność |
 
 Zalecana kolejność czytania: 02, 03, 04, 11, potem reszta. Przed kodowaniem: 12 i 13.
 
@@ -55,7 +56,7 @@ Skrypty są zdefiniowane w `package.json` (patrz `docs/07-deployment.md`).
 │   ├── engine/        # types, config, clock, calibration, judge, scoring, session, chart
 │   ├── game/          # controller: wejście, audio, pauza
 │   ├── audio/         # AudioContext, synteza, scheduler
-│   ├── render/        # Canvas, animacja kółek
+│   ├── render/        # Canvas, styl wizualny, ładowanie czcionki
 │   ├── net/           # klient API
 │   ├── ui/            # ekrany, kalibracja
 │   └── main.ts
@@ -63,6 +64,7 @@ Skrypty są zdefiniowane w `package.json` (patrz `docs/07-deployment.md`).
 │   ├── index.ts       # API na Cloudflare Workers, zadanie retencji
 │   └── blocklist.ts   # lista zakazanych słów w nickach
 ├── migrations/        # SQL dla D1
+├── public/licenses/   # teksty licencji dołączane do wdrożenia
 ├── charts/
 │   ├── index.ts       # zbiór map importowany przez klienta i Worker
 │   └── *.json         # mapy nut

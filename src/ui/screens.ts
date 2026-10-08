@@ -59,7 +59,9 @@ export function showAbout(root: HTMLElement, onBack: () => void): void {
       `Kod: ${ABOUT.codeLicense}.`,
       'Wszystkie dźwięki są syntezowane w przeglądarce, a mapy są autorskimi kompozycjami. Gra nie zawiera nagrań ani próbek dźwięku.',
       'Serwer korzysta z biblioteki Zod (licencja MIT, Colin McDonnell).',
+      'Czcionka Anton, © 2020 The Anton Project Authors, licencja SIL Open Font License 1.1.',
     ),
+    fontLicenseLink(),
     section(
       'Dane',
       'Ranking przechowuje nick, wynik, mapę i czas zapisu, dopóki wynik mieści się w 1000 najlepszych na mapie.',
@@ -69,6 +71,16 @@ export function showAbout(root: HTMLElement, onBack: () => void): void {
     ),
     button('Wróć', onBack, true),
   );
+}
+
+function fontLicenseLink(): HTMLElement {
+  const p = el('p', 'hint');
+  const a = el('a', '', 'Tekst licencji czcionki');
+  a.href = `${import.meta.env.BASE_URL}licenses/Anton-OFL.txt`;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  p.append(a);
+  return p;
 }
 
 function rankingList(rows: LeaderboardRow[]): HTMLElement {

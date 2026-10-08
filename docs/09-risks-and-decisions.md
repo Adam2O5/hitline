@@ -9,7 +9,7 @@
 | R-03 | Wyczerpanie dziennego limitu żądań Workera (100 000/dzień) lub zapisów D1 | niskie na starcie | średni | cache rankingu, limiter zapisów, monitorowanie, plan wyjścia (patrz niżej) | ograniczone: cache 30 s, 2 zapisane wiersze na wynik (pomiar), `503` i ponowienie po stronie klienta; monitorowanie w panelu po pierwszym tygodniu ruchu |
 | R-04 | Zachowanie D1 po przekroczeniu limitów darmowych | zweryfikowane | niski | w planie Free zapytania kończą się błędem do 00:00 UTC, bez opłat; Worker zwraca `503`, klient zachowuje wynik lokalnie; nie podpinać metody płatności, bo plan Paid nalicza opłaty za nadwyżkę | zamknięte: zweryfikowane w dokumentacji |
 | R-05 | Fałszowanie wyników w rankingu | wysokie przy popularności | niski do średni | poziomy walidacji (`06-backend-and-data.md`, ADR-007) | ograniczone: poziom 2 wdrożony; poziom 3 w backlogu |
-| R-06 | Naruszenie praw autorskich przez treści muzyczne | zależy od treści | wysoki | własne beaty i synteza, rejestr licencji (`05-audio-assets.md`, ADR-005) | ograniczone: tylko synteza i autorskie mapy, `CREDITS.md`, pusty rejestr zasobów; każda nowa mapa lub próbka wymaga wpisu |
+| R-06 | Naruszenie praw autorskich przez treści muzyczne i zasoby zewnętrzne | zależy od treści | wysoki | własne beaty i synteza, rejestr licencji (`05-audio-assets.md`, ADR-005) | ograniczone: tylko synteza i autorskie mapy; jedyny zasób zewnętrzny to czcionka Anton (OFL 1.1) wpisana w `assets-register.csv`, `CREDITS.md` i „O grze”; każda nowa mapa lub zasób wymaga wpisu |
 | R-07 | Zmiana limitów lub warunków darmowych planów | średnie | średni | przegląd limitów co kwartał, abstrakcja warstwy danych | otwarte, cykliczne: ostatni przegląd 2026-10-07, następny do 2027-01-07 |
 | R-08 | Różnice zachowania Web Audio między przeglądarkami | średnie | średni | macierz testów, metoda zapasowa w `clock.ts`, metoda zapisana z kalibracją (ADR-010) | ograniczone w kodzie; otwarte: macierz w `08`, pkt 4 (autor) |
 | R-09 | Zbyt duży rozrzut kalibracji u graczy (niespójne stukanie) | średnie | niski | próg rozrzutu, ponowna kalibracja, mediana | ograniczone w kodzie; próg 40 ms do sprawdzenia w testach z graczami |
@@ -19,6 +19,7 @@
 | R-13 | Obraźliwe nicki w publicznym rankingu | wysokie przy popularności | średni | lista zakazanych słów, procedura ręcznego usuwania (`06-backend-and-data.md`, pkt 5) | ograniczone: `worker/blocklist.ts` z testami; lista do uzupełniania |
 | R-14 | Fałszywe odrzucenia niewinnych nicków przez listę zakazanych słów | średnie | niski | porównanie krótkich słów tylko z całym nickiem, czytelny komunikat, korekta listy | ograniczone: wdrożone i przetestowane |
 | R-15 | Mashowanie (klikanie na oślep) przy jednym przycisku | wysokie | średni | kara za puste kliknięcie (`01-requirements.md`, pkt 4); strojenie wartości kary po testach | ograniczone: kara 10 pkt; otwarte: wartość do decyzji po testach z graczami (ADR-011) |
+| R-16 | Czcionka nie załaduje się przed pierwszą klatką lub zawiedzie | niskie | niski | `loadFonts()` z limitem 1,5 s, fallback Impact / Arial Narrow Bold, `fitFont` łagodzi różnice szerokości | ograniczone w kodzie; otwarte: test polskich znaków na urządzeniu bez Antona (`14`, pkt 11) |
 
 Plan wyjścia dla R-03 i R-07: logika danych jest ukryta za cienkim interfejsem (`net/api.ts` po stronie klienta, funkcje dostępu do danych po stronie Workera), więc zamiana bazy lub platformy dotyka niewielkiej części kodu.
 
@@ -149,6 +150,14 @@ Plan wyjścia dla R-03 i R-07: logika danych jest ukryta za cienkim interfejsem 
 - **Opcje:** (A) walidacja w kliencie, CI i Workerze; (B) walidacja tylko w CI i Workerze.
 - **Decyzja:** (B). Walidator w osobnym module `engine/validate.ts`, importowanym przez `scripts/validate-charts.ts`, testy i Worker; `charts/index.ts` rzutuje JSON na `Chart`.
 - **Konsekwencje:** mała paczka klienta; błędna mapa może trafić do klienta tylko z pominięciem CI. Mapy ładowane dynamicznie (spoza buildu) wymagałyby powrotu do walidacji w kliencie.
+
+### ADR-017: Styl wizualny Back Alley, bez abstrakcji motywów
+
+- **Status:** przyjęta.
+- **Kontekst:** dotychczasowy wygląd był domyślny (niebieskie przyciski, kolory per instrument). Rozważono pięć kierunków w podglądach (Aurora, Neon Grid, Back Alley, Clean, Pixel LCD).
+- **Opcje:** (A) jeden styl zapisany bezpośrednio w `Renderer` i `style.css`; (B) interfejs `Theme` z wymiennymi stylami; (C) wiele stylów wybieranych przez gracza.
+- **Decyzja:** (A), styl Back Alley. Paleta w tokenach CSS jako jedyne źródło kolorów (renderer czyta je raz), czcionka Anton ładowana lokalnie z pakietu, nuty w jednym kolorze (złoty), bez kolorów instrumentów. Opis w `14-visual-style.md`.
+- **Konsekwencje:** prostszy kod i szybszy renderer; dodanie drugiego motywu wymaga wydzielenia interfejsu `Theme`. Pierwszy zasób zewnętrzny w repozytorium (R-06, R-16). Instrument rozróżnia tylko napis, co wystarcza, bo runda gra zwykle jednym instrumentem.
 
 ## 3. Procedura przeglądu limitów
 

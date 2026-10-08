@@ -47,7 +47,9 @@ flowchart LR
 | `audio/context.ts` | pojedyncza instancja `AudioContext`, odblokowanie po geście | brak |
 | `audio/synth.ts` | funkcje syntezy instrumentów, `play()`, `stopAll()` | `audio/context` |
 | `audio/scheduler.ts` | planowanie dźwięków warstw tła z wyprzedzeniem | `engine/types` (funkcja `play` wstrzykiwana) |
-| `render/canvas.ts` | rysowanie kółek, linii trafienia, efektów | `session` (tylko odczyt) |
+| `render/canvas.ts` | rysowanie krążków, taśmy, nagłówka i efektów w stylu z `14-visual-style.md` | `session` (tylko odczyt), `render/style`, `render/stats` |
+| `render/style.ts` | czyste funkcje stylu: drżenie, dopasowanie czcionki, limit błysków, generator ziarna | `engine/types` |
+| `render/fonts.ts`, `render/stats.ts` | jawne ładowanie czcionki; pomiar czasu rysowania dla ekranu debug | brak |
 | `net/api.ts` | wywołania `/api/*`, przechowanie i ponowienie niewysłanego wyniku | `engine/types` |
 | `ui/*` | ekrany z `11-ux.md` | pozostałe |
 

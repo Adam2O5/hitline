@@ -1,10 +1,27 @@
+:root {
+  --ink: #0a0a0a;
+  --ink-2: #161616;
+  --paper: #f4f4f0;
+  --gold: #e8b923;
+  --blood: #d4141c;
+  --mute: #9a9a9a;
+  --line: #2a2a2a;
+  --display: Anton, Impact, "Arial Narrow Bold", sans-serif;
+  --body: system-ui, sans-serif;
+}
+
+html {
+  font-synthesis: none;
+  background-color: var(--ink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .08 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 html,
 body {
   margin: 0;
   height: 100%;
-  background: #111;
-  color: #eee;
-  font-family: system-ui, sans-serif;
+  color: var(--paper);
+  font-family: var(--body);
   touch-action: manipulation;
   overscroll-behavior: none;
 }
@@ -18,8 +35,28 @@ body {
 }
 
 :focus-visible {
-  outline: 3px solid #f9d56e;
-  outline-offset: 2px;
+  outline: 3px solid var(--paper);
+  outline-offset: 3px;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font: 400 2.4rem/1.05 var(--display);
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+  text-shadow: 3px 3px 0 var(--blood);
+}
+
+h1.logo {
+  font-size: clamp(3.5rem, 16vw, 6rem);
+  text-shadow: 4px 4px 0 var(--blood);
+}
+
+h3 {
+  font: 400 1.3rem/1.1 var(--display);
+  text-transform: uppercase;
+  color: var(--gold);
 }
 
 .tuning-toggle {
@@ -48,17 +85,38 @@ body {
   font-size: 0.85rem;
 }
 
+.tuning h3 {
+  font: 700 1.17em/1.2 system-ui, sans-serif;
+  text-transform: none;
+  color: inherit;
+}
+
 .tuning fieldset {
   margin: 0 0 12px;
   border: 1px solid #444;
   border-radius: 8px;
 }
 
-.tuning button {
+.tuning button,
+.tuning-toggle {
+  --tilt: 0deg;
   min-width: 0;
   margin: 4px 0;
   padding: 6px 12px;
-  font-size: 0.85rem;
+  font: 0.85rem system-ui, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #fff;
+  background: #333;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.tuning button:active,
+.tuning-toggle:active {
+  transform: none;
+  box-shadow: none;
 }
 
 .tuning-row {
@@ -137,19 +195,46 @@ body {
 }
 
 button {
-  font: inherit;
-  font-size: 1.1rem;
+  --tilt: -1deg;
+  font: 400 1.25rem/1.2 var(--display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   padding: 12px 24px;
   min-width: 200px;
-  border: 0;
-  border-radius: 8px;
-  background: #2d6cdf;
-  color: #fff;
+  color: var(--ink);
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 4px 4px 0 var(--blood);
+  transform: rotate(var(--tilt));
   cursor: pointer;
 }
 
+button:active {
+  transform: translate(3px, 3px) rotate(var(--tilt));
+  box-shadow: 1px 1px 0 var(--blood);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 button.secondary {
-  background: #333;
+  color: var(--paper);
+  background: var(--ink-2);
+  border-color: var(--paper);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.menu-list button:nth-child(even) {
+  --tilt: 1deg;
 }
 
 .overlay {
@@ -163,10 +248,11 @@ button.secondary {
   padding: 24px;
   box-sizing: border-box;
   text-align: center;
-  background: rgba(17, 17, 17, 0.85);
+  background: rgba(10, 10, 10, 0.9);
 }
 
 .pause-button {
+  --tilt: 0deg;
   position: absolute;
   top: 12px;
   right: 12px;
@@ -174,13 +260,8 @@ button.secondary {
   width: 44px;
   height: 44px;
   padding: 0;
-  background: #333;
-}
-
-.menu-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  font-size: 1.1rem;
+  letter-spacing: 0;
 }
 
 .ranking-box {
@@ -194,9 +275,15 @@ button.secondary {
   line-height: 1.6;
 }
 
+.ranking li::marker {
+  font-family: var(--display);
+  color: var(--gold);
+}
+
 .ranking li span:last-child {
   float: right;
   margin-left: 24px;
+  color: var(--gold);
 }
 
 .score-form {
@@ -230,10 +317,10 @@ button.secondary {
 select {
   font: inherit;
   padding: 10px 12px;
-  border: 1px solid #777;
-  border-radius: 8px;
-  background: #222;
-  color: #eee;
+  border: 2px solid var(--mute);
+  border-radius: 0;
+  background: var(--ink-2);
+  color: var(--paper);
 }
 
 .score-form p {
@@ -243,12 +330,12 @@ select {
 
 .hint {
   max-width: 32rem;
-  color: #999;
+  color: var(--mute);
   font-size: 0.9rem;
 }
 
 .warn {
-  color: #f0d27c;
+  color: var(--gold);
 }
 
 .stats {
@@ -262,11 +349,14 @@ select {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: #333;
+  background: var(--ink-2);
+  border: 3px solid var(--mute);
+  box-sizing: border-box;
 }
 
 .pulse.on {
-  background: #2d6cdf;
+  background: var(--gold);
+  border-color: var(--paper);
 }
 
 .debug {
@@ -279,4 +369,8 @@ select {
   font: 12px/1.4 monospace;
   white-space: pre;
   pointer-events: none;
+}
+
+a {
+  color: var(--gold);
 }
