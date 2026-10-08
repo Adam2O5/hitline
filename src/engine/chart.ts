@@ -65,3 +65,7 @@ export function roundDuration(chart: Chart): number {
 export function maxScore(chart: Chart): number {
   return roundOffset(chart, chart.rounds.length) * CONFIG.points.perfect;
 }
+
+export function roundMaxScore(chart: Chart, roundIndex: number): number {
+  return (roundOffset(chart, roundIndex + 1) - roundOffset(chart, roundIndex)) * CONFIG.points.perfect;
+}

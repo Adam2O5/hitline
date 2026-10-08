@@ -1,10 +1,13 @@
-import { roundDuration, type Chart } from '../engine/chart.ts';
+import { maxScore, roundDuration, roundMaxScore, type Chart } from '../engine/chart.ts';
+import { fraction } from '../engine/scoring.ts';
 import type { SessionState } from '../engine/session.ts';
-import type { Grade } from '../engine/types.ts';
 import { instrumentsOf } from './labels.ts';
 import { ABOUT } from '../about.ts';
 import type { CreateChallengeResult, LeaderboardRow, SendResult } from '../net/api.ts';
+import { tween } from './anim.ts';
 import { button, el, overlay, screen } from './dom.ts';
+import { SCALE, formatScore, toScale } from './format.ts';
+import { ring } from './ring.ts';
 
 export function showStart(root: HTMLElement, onStart: () => void): void {
   const s = screen(root, el('h1', '', 'Hitline'), el('p', '', 'Dotknij, aby zacząć'));
@@ -22,7 +25,7 @@ export function showMenu(
   const list = el('div', 'menu-list');
   for (const c of charts) {
     const b = best(c.id);
-    list.append(button(`${c.title} · ${c.bpm} BPM${b !== null ? ` · rekord ${b}` : ''}`, () => actions.onPick(c)));
+    list.append(button(`${c.title} · ${c.bpm} BPM${b !== null ? ` · rekord ${formatScore(c, b)}` : ''}`, () => actions.onPick(c)));  
   }
   if (!charts.length) list.append(el('p', 'warn', 'Brak dostępnych map.'));
   const status = el('p', 'warn', notice);
@@ -83,21 +86,21 @@ function fontLicenseLink(): HTMLElement {
   return p;
 }
 
-function rankingList(rows: LeaderboardRow[]): HTMLElement {
+function rankingList(rows: LeaderboardRow[], chart: Chart): HTMLElement {
   if (!rows.length) return el('p', 'hint', 'Brak wyników. Bądź pierwszy!');
   const list = el('ol', 'ranking');
   for (const r of rows) {
     const li = el('li');
-    li.append(el('span', '', r.player), el('span', '', String(r.score)));
+    li.append(el('span', '', r.player), el('span', '', formatScore(chart, r.score)));
     list.append(li);
   }
   return list;
 }
 
-function fillRanking(box: HTMLElement, rows: Promise<LeaderboardRow[] | null>): void {
+function fillRanking(box: HTMLElement, rows: Promise<LeaderboardRow[] | null>, chart: Chart): void {
   box.replaceChildren(el('p', 'hint', 'Wczytywanie rankingu…'));
   void rows.then(r => {
-    box.replaceChildren(r ? rankingList(r) : el('p', 'hint', 'Ranking jest chwilowo niedostępny.'));
+    box.replaceChildren(r ? rankingList(r, chart) : el('p', 'hint', 'Ranking jest chwilowo niedostępny.'));
   });
 }
 
@@ -109,12 +112,12 @@ export function showMapCard(
   actions: { onPlay: () => void; onBack: () => void; onChallenge: () => Promise<CreateChallengeResult> },
 ): void {
   const box = el('div', 'ranking-box');
-  fillRanking(box, top.then(r => r && r.slice(0, 3)));
+  fillRanking(box, top.then(r => r && r.slice(0, 3)), chart);
   screen(
     root,
     el('h2', '', chart.title),
     el('p', '', `${chart.bpm} BPM · 5 rund po ${Math.round(roundDuration(chart))} s`),
-    el('p', 'hint', best !== null ? `Twój rekord: ${best}` : 'Jeszcze nie grałeś tej mapy.'),
+    el('p', 'hint', best !== null ? `Twój rekord: ${formatScore(chart, best)}` : 'Jeszcze nie grałeś tej mapy.'),
     box,
     button('Graj', actions.onPlay),
     challengeBlock(actions.onChallenge),
@@ -173,8 +176,11 @@ export function showLeaderboard(
     select.append(o);
   }
   const box = el('div', 'ranking-box');
-  select.addEventListener('change', () => fillRanking(box, load(select.value)));
-  fillRanking(box, load(selected.id));
+  select.addEventListener('change', () => {
+    const c = charts.find(x => x.id === select.value) ?? selected;
+    fillRanking(box, load(c.id), c);
+  });
+  fillRanking(box, load(selected.id), selected);
   screen(root, el('h2', '', 'Ranking'), select, box, button('Wróć', onBack, true));
 }
 
@@ -251,32 +257,58 @@ export function showPause(area: HTMLElement, actions: { onResume: () => void; on
   );
 }
 
-function gradeList(notes: readonly { grade?: Grade }[], emptyTaps: number): HTMLUListElement {
-  const counts: Record<Grade, number> = { perfect: 0, good: 0, ok: 0, miss: 0 };
-  for (const n of notes) counts[n.grade ?? 'miss']++;
-  const list = el('ul', 'stats');
-  for (const g of ['perfect', 'good', 'ok', 'miss'] as const) list.append(el('li', '', `${g}: ${counts[g]}`));
-  list.append(el('li', '', `puste kliknięcia: ${emptyTaps}`));
-  return list;
-}
+const NEXT_ROUND_SECONDS = 5;
+const LAST_ROUND_SECONDS = 3;
 
-export function showRoundResults(
+export function showRoundEnd(
   area: HTMLElement,
   chart: Chart,
   s: Readonly<SessionState>,
-  onNext: () => void,
+  isLast: boolean,
+  onDone: () => void,
 ): void {
   const r = s.roundIndex;
+  const percent = fraction(s.perRound[r], roundMaxScore(chart, r)) * 100;
+  const seconds = isLast ? LAST_ROUND_SECONDS : NEXT_ROUND_SECONDS;
+  const num = el('p', 'count-num');
   const o = overlay(
     area,
-    el('h2', '', `Runda ${r + 1}: ${s.perRound[r]} pkt`),
-    gradeList(s.results[r], s.emptyTaps[r]),
-    el('p', 'hint', `Następna runda dokłada: ${instrumentsOf(chart, r + 1)}`),
-    button('Następna runda', () => {
-      o.remove();
-      onNext();
-    }),
+    el('h2', '', `Runda ${r + 1}`),
+    ring(percent, { label: `Runda ${r + 1}`, big: true, suffix: '%' }),
+    ...(isLast ? [] : [el('p', 'hint', `Następna runda dokłada: ${instrumentsOf(chart, r + 1)}`)]),
+    el('p', 'hint', isLast ? 'Wyniki za' : 'Następna runda za'),
+    num,
   );
+
+  const end = performance.now() + seconds * 1000;
+  const finish = () => {
+    o.remove();
+    onDone();
+  };
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((end - performance.now()) / 1000));
+    num.textContent = String(left);
+    if (left > 0) return;
+    clearInterval(timer);
+    // w ukrytej karcie nie startujemy rundy: poczekaj na powrót
+    if (document.hidden) document.addEventListener('visibilitychange', finish, { once: true });
+    else finish();
+  };
+  const timer = setInterval(tick, 100);
+  tick();
+}
+
+
+function resultHead(title: string, total: number): HTMLElement {
+  const head = el('div', 'result-head');
+  const value = el('span', '', '0.00');
+  const score = el('div', 'big-score');
+  score.append(value, el('span', 'of', `/${SCALE}`));
+  tween(1200, 200, k => {
+    value.textContent = (total * k).toFixed(2);
+  });
+  head.append(el('h2', '', title), score);
+  return head;
 }
 
 export function showMapResults(
@@ -292,13 +324,16 @@ export function showMapResults(
     onMenu: () => void;
   },
 ): void {
-  const rounds = el('ul', 'stats');
-  s.perRound.forEach((p, k) => rounds.append(el('li', '', `Runda ${k + 1}: ${p} pkt`)));
+  const rings = el('div', 'rings');
+  s.perRound.forEach((p, k) => {
+    const percent = fraction(p, roundMaxScore(chart, k)) * 100;
+    rings.append(ring(percent, { label: `Runda ${k + 1}`, delay: 300 + k * 150 }));
+  });
   screen(
     root,
-    el('h2', '', `${chart.title}: ${s.score} pkt`),
+    resultHead(chart.title, toScale(s.score, maxScore(chart))),
     ...(newBest ? [el('p', 'warn', 'Nowy rekord!')] : []),
-    rounds,
+    rings,
     scoreForm(defaultName, actions.onSend),
     button('Zagraj ponownie', actions.onRetry),
     button('Ranking', actions.onRanking, true),

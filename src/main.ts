@@ -17,7 +17,7 @@ import { showCalibration, type CalibrationReason } from './ui/calibration.ts';
 import { startDebugOverlay } from './ui/debug.ts';
 import { startTuningPanel } from './ui/tuning.ts';
 import {
-  showAbout, showLeaderboard, showMapCard, showMapResults, showMenu, showPause, showRound, showRoundResults, showStart,
+  showAbout, showLeaderboard, showMapCard, showMapResults, showMenu, showPause, showRound, showRoundEnd, showStart,
 } from './ui/screens.ts';
 
 const root = document.querySelector<HTMLDivElement>('#app')!;
@@ -116,30 +116,33 @@ function play(chart: Chart): void {
           menu();
         },
       }),
-    onRoundEnd: (s, isLast) => {
-      if (!isLast) {
-        showRoundResults(area, chart, s, () => controller.startRound(s.roundIndex + 1));
-        return;
-      }
-      controller.detach();
-      renderer.dispose();
-      const newBest = saveBest(chart.id, s.score);
-      let sent = false;
-      const showResults = () =>
-        showMapResults(root, chart, s, newBest, loadPlayer(), {
-          onSend: async player => {
-            if (sent) return 'ok';
-            savePlayer(player);
-            const r = await postScore(buildScorePayload(chart, s, player));
-            sent = r === 'ok';
-            return r;
-          },
-          onRetry: () => mapCard(chart),
-          onRanking: () => ranking(chart, showResults),
-          onMenu: menu,
+      onRoundEnd: (s, isLast) => {
+        const next = s.roundIndex + 1;
+        showRoundEnd(area, chart, s, isLast, () => {
+          if (!isLast) {
+            controller.startRound(next);
+            return;
+          }
+          controller.detach();
+          renderer.dispose();
+          const newBest = saveBest(chart.id, s.score);
+          let sent = false;
+          const showResults = () =>
+            showMapResults(root, chart, s, newBest, loadPlayer(), {
+              onSend: async player => {
+                if (sent) return 'ok';
+                savePlayer(player);
+                const r = await postScore(buildScorePayload(chart, s, player));
+                sent = r === 'ok';
+                return r;
+              },
+              onRetry: () => mapCard(chart),
+              onRanking: () => ranking(chart, showResults),
+              onMenu: menu,
+            });
+          showResults();
         });
-      showResults();
-    },
+      },
   });
   pauseButton.addEventListener('click', () => {
     pauseButton.blur();

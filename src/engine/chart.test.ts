@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import charts from '../../charts/index.ts';
-import { maxScore, roundDuration, roundOffset, toBacking, toPlayable, type Chart } from './chart.ts';
+import { maxScore, roundDuration, roundMaxScore, roundOffset, toBacking, toPlayable, type Chart } from './chart.ts';
 import { validateChart, validateSpacing } from './validate.ts';
 
 const base = (): Chart => ({
@@ -121,4 +121,10 @@ it('liczy przesunięcie indeksu globalnego rundy', () => {
 it('liczy czas trwania rundy z wprowadzeniem i pętlami', () => {
   const chart: any = { bpm: 90, leadInBeats: 4, lengthBeats: 4, loops: 4 };
   expect(roundDuration(chart)).toBeCloseTo((4 + 16) * 60 / 90, 6);
+});
+
+it('liczy maksimum punktów pojedynczej rundy', () => {
+  const chart: any = { loops: 2, rounds: [{ play: [1, 2, 3] }, { play: [1, 2] }] };
+  expect(roundMaxScore(chart, 0)).toBe(600);
+  expect(roundMaxScore(chart, 1)).toBe(400);
 });

@@ -15,7 +15,6 @@ interface Tokens {
   gold: string;
   blood: string;
   mute: string;
-  line: string;
   display: string;
 }
 
@@ -28,7 +27,6 @@ function readTokens(): Tokens {
     gold: v('--gold', '#e8b923'),
     blood: v('--blood', '#d4141c'),
     mute: v('--mute', '#9a9a9a'),
-    line: v('--line', '#2a2a2a'),
     display: v('--display', 'Anton, Impact, "Arial Narrow Bold", sans-serif'),
   };
 }
@@ -41,7 +39,6 @@ export class Renderer {
   private h = 0;
   private u = 1;          // skala względem układu odniesienia 320x460
   private col = 0;        // szerokość kolumny treści
-  private colX = 0;       // lewa krawędź kolumny
   private hitY = 0;
   private round = -1;
   private feedbackKind: FeedbackKind = 'empty';
@@ -72,7 +69,7 @@ export class Renderer {
   }
 
   draw(s: Readonly<SessionState>, songTime: number): void {
-    const { g, w, h, u, col, colX, hitY, tokens: t } = this;
+    const { g, w, h, u, hitY, tokens: t } = this;
     if (!w || !h) return;
     const t0 = performance.now();
     if (s.roundIndex !== this.round) {
@@ -102,7 +99,7 @@ export class Renderer {
     if (age >= 0 && age < FEEDBACK_TIME) {
       g.globalAlpha = reduced ? 1 : 1 - age / FEEDBACK_TIME;
       const kind = this.feedbackKind;
-      const label = kind === 'empty' ? `-${CONFIG.emptyTapPenalty}` : kind.toUpperCase();
+      const label = kind === 'empty' ? 'PUDŁO' : kind.toUpperCase();
       const color = kind === 'empty' ? t.blood : kind === 'perfect' ? t.gold : kind === 'good' ? t.paper : t.mute;
       this.text(label, x, hitY + 60 * u, 26 * u, color, 'center');
       g.globalAlpha = 1;
@@ -119,12 +116,11 @@ export class Renderer {
     }
     g.restore();
 
-    this.text(`${liveScore(s)} PKT`, colX + col - 20 * u, h - 18 * u, 20 * u, t.gold, 'right');
     recordDraw(performance.now() - t0);
   }
 
   private drawHeader(s: Readonly<SessionState>, now: number, leadIn: boolean): void {
-    const { g, u, col, colX, chart, tokens: t } = this;
+    const { g, u, col, chart, tokens: t } = this;
     const loopLen = sec(chart, chart.lengthBeats);
     const loop = Math.min(chart.loops, Math.max(1, Math.floor((now - sec(chart, chart.leadInBeats)) / loopLen) + 1));
     const l1 = `RUNDA ${s.roundIndex + 1}/${s.perRound.length}`;
@@ -132,7 +128,7 @@ export class Renderer {
     g.font = `400 ${15 * u}px ${t.display}`;
     const sw = Math.max(g.measureText(l1).width, g.measureText(l2).width) + 18 * u;
     g.save();
-    g.translate(colX + 24 * u, 28 * u);
+    g.translate(24 * u, 28 * u);
     g.rotate(0.05);
     g.fillStyle = t.paper;
     g.fillRect(0, 0, sw, 40 * u);
@@ -140,7 +136,7 @@ export class Renderer {
     this.text(l2, 9 * u, 34 * u, 15 * u, t.ink);
     g.restore();
 
-    if (leadIn) this.text('GRASZ', colX + 26 * u, 94 * u, 16 * u, t.gold);
+    if (leadIn) this.text('GRASZ', 26 * u, 94 * u, 16 * u, t.gold);
 
     const name = instrumentsOf(chart, s.roundIndex).toUpperCase();
     const key = `${s.roundIndex}|${col}|${u}`;
@@ -152,7 +148,7 @@ export class Renderer {
     }
     const size = this.titleSize;
     g.save();
-    g.translate(colX + 22 * u, 100 * u + size * 0.88);
+    g.translate(22 * u, 100 * u + size * 0.88);
     g.rotate(-0.07);
     this.text(name, 4 * u, 4 * u, size, t.blood);
     this.text(name, 0, 0, size, t.paper);
@@ -236,7 +232,6 @@ export class Renderer {
     this.h = r.height;
     this.u = Math.max(0.1, Math.min(r.width / 320, r.height / 460));
     this.col = Math.min(r.width, r.height * 0.72);
-    this.colX = (r.width - this.col) / 2;
     this.hitY = r.height * 0.8;
     this.canvas.width = Math.round(r.width * dpr);
     this.canvas.height = Math.round(r.height * dpr);
@@ -259,8 +254,6 @@ export class Renderer {
     vg.addColorStop(1, 'rgba(0,0,0,0)');
     b.fillStyle = vg;
     b.fillRect(0, 0, w, h);
-    b.fillStyle = t.line;
-    b.fillRect(w / 2 - 2 * u, 0, 4 * u, h);
     const rnd = mulberry32(0x5eed);
     b.fillStyle = t.paper;
     const count = Math.floor((w * h) / 600);
@@ -273,10 +266,4 @@ export class Renderer {
     }
     b.globalAlpha = 1;
   }
-}
-
-function liveScore(s: Readonly<SessionState>): number {
-  let pts = 0;
-  for (const n of s.notes) if (n.grade) pts += CONFIG.points[n.grade];
-  return Math.max(0, pts - s.emptyTaps[s.roundIndex] * CONFIG.emptyTapPenalty);
 }
